@@ -48,6 +48,11 @@ class RoundState:
             self.pot += call_amount
             self.waiting_for.discard(player_id)
             self.player_actions[player_id] = PokerAction.CALL
+        elif action == PokerAction.ALL_IN:
+            self.player_bets[player_id] += amount
+            self.pot += amount
+            self.waiting_for.discard(player_id)
+            self.player_actions[player_id] = PokerAction.ALL_IN
         elif action == PokerAction.RAISE:
             if amount <= self.raise_amount:
                 raise ValueError("Raise amount must be higher than the current raise")
@@ -57,7 +62,7 @@ class RoundState:
             self.player_bets[player_id] += amount
             self.waiting_for = set(p for p in self.player_bets.keys() if p != player_id)
             for player in self.waiting_for.copy():
-                if player in self.player_actions and self.player_actions[player] == PokerAction.FOLD:
+                if player in self.player_actions and self.player_actions[player] in [PokerAction.FOLD, PokerAction.ALL_IN]:
                     self.waiting_for.discard(player)
                 else:
                     self.player_actions[player] = None
@@ -88,6 +93,7 @@ class Game:
         self.historical_pots: List[int] = []
         self.player_history: Dict = {}
         self.current_round: RoundState = None
+        self.score = {}
 
     def add_player(self, player_id: int):
         self.players.append(player_id)
@@ -110,6 +116,9 @@ class Game:
         self.total_pot = 0
         self.historical_pots = []
         self.player_history = {}
+        self.score = {
+            player: 0 for player in self.active_players
+        }
         
         # Initialize the first round
         self.current_round = RoundState(self.active_players)
@@ -117,9 +126,15 @@ class Game:
     def update_game(self, player_id: int, action: Tuple[PokerAction, int]):
         if player_id not in self.active_players:
             raise ValueError("Player is not active in the game")
-
-        action_type, amount = action
         
+        action_type, amount = action
+        # All in propagation
+        if self.round_index > 1:
+            # print(self.player_history[self.round_index - 1]["player_actions"])
+            if self.player_history[self.round_index - 1]["player_actions"][player_id] == PokerAction.ALL_IN:
+                print(f"Player {player_id} is all in from previous round")
+                action_type, amount = PokerAction.ALL_IN, 0
+
         # Update round state
         self.current_round.update_player_action(player_id, action_type, amount)
         
@@ -162,14 +177,35 @@ class Game:
         }
 
     def end_game(self):
-        score = {}
+        final = {}
         for player in self.active_players:
-            score[player] = 0
+            final[player] = 0
 
         for player in self.active_players:
             players_hand = self.hands[player].copy()
             players_hand.extend(self.board)
-            score[player] = eval7.evaluate(players_hand)
+            final[player] = eval7.evaluate(players_hand)
 
-        winner = max(score, key=score.get)
-        print(f"Player {winner} wins with hand {self.hands[winner]}")
+        winner = max(final, key=final.get)
+        # check if winner all in last round
+        if self.player_history[PokerRound.RIVER.value]["player_actions"][winner] == PokerAction.ALL_IN:
+            # TODO: split pot
+            for r in range(1, 5):
+                self.score[winner] += self.player_history[r]["player_bets"][winner]
+            
+            remain = self.total_pot - self.score[winner]
+            for player in self.active_players:
+                if player != winner:
+                    self.score[player] = remain / len(self.active_players)
+
+            print(f"Player {winner} wins with hand {self.hands[winner]} and all in")
+        else:
+            self.score[winner] = self.total_pot
+            print(f"Player {winner} wins with hand {self.hands[winner]}")
+
+        for player in self.players:
+            for r in range(1, 5):
+                if player in self.player_history[r]["player_bets"]:
+                    self.score[player] -= self.player_history[r]["player_bets"][player]
+
+        print(f"Scores: {self.score}")
