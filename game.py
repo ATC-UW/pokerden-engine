@@ -24,6 +24,14 @@ class RoundState:
         print(s)
 
 
+    def _update_waiting_for_after_raise(self, player_id: int) -> None:
+        self.waiting_for = set(p for p in self.player_bets.keys() if p != player_id)
+        for player in self.waiting_for.copy():
+            if player in self.player_actions and self.player_actions[player] in [PokerAction.FOLD, PokerAction.ALL_IN]:
+                self.waiting_for.discard(player)
+            else:
+                self.player_actions[player] = None
+
     def update_player_action(self, player_id: int, action: PokerAction, amount: int = 0) -> None:
         """Update the round state based on a player's action"""
 
@@ -53,6 +61,11 @@ class RoundState:
             self.pot += amount
             self.waiting_for.discard(player_id)
             self.player_actions[player_id] = PokerAction.ALL_IN
+            if(amount > self.raise_amount):
+                self.raise_amount = amount
+                self.bettor = player_id
+                self._update_waiting_for_after_raise(player_id)
+
         elif action == PokerAction.RAISE:
             if amount <= self.raise_amount:
                 raise ValueError("Raise amount must be higher than the current raise")
@@ -61,11 +74,7 @@ class RoundState:
             self.pot += self.raise_amount
             self.player_bets[player_id] += amount
             self.waiting_for = set(p for p in self.player_bets.keys() if p != player_id)
-            for player in self.waiting_for.copy():
-                if player in self.player_actions and self.player_actions[player] in [PokerAction.FOLD, PokerAction.ALL_IN]:
-                    self.waiting_for.discard(player)
-                else:
-                    self.player_actions[player] = None
+            self._update_waiting_for_after_raise(player_id)
 
     def is_round_complete(self) -> bool:
         """Check if the current round is complete"""
@@ -81,7 +90,8 @@ class RoundState:
         self.player_actions = {}
 
 class Game:
-    def __init__(self):
+    def __init__(self, debug: bool = False):
+        self.debug = debug
         self.nums_round = NUM_ROUNDS
         self.players: List[int] = []
         self.active_players: List[int] = []
@@ -100,8 +110,9 @@ class Game:
         self.active_players.append(player_id)
 
     def print_debug(self):
-        s = f"Players: {self.players} \n Active Players: {self.active_players} \n Hands: {self.hands} \n Board: {self.board} \n Round Index: {self.round_index} \n Total Pot: {self.total_pot} \n Historical Pots: {self.historical_pots} \n Player History: {self.player_history} \n \t Current Round: \n {self.current_round}"
-        print(s)
+        if self.debug:
+            s = f"Players: {self.players} \n Active Players: {self.active_players} \n Hands: {self.hands} \n Board: {self.board} \n Round Index: {self.round_index} \n Total Pot: {self.total_pot} \n Historical Pots: {self.historical_pots} \n Player History: {self.player_history} \n \t Current Round: \n {self.current_round}"
+            print(s)
 
     def start_game(self):
         self.deck = PokerDeck()
@@ -132,7 +143,8 @@ class Game:
         if self.round_index > 1:
             # print(self.player_history[self.round_index - 1]["player_actions"])
             if self.player_history[self.round_index - 1]["player_actions"][player_id] == PokerAction.ALL_IN:
-                print(f"Player {player_id} is all in from previous round")
+                if self.debug:
+                    print(f"Player {player_id} is all in from previous round")
                 action_type, amount = PokerAction.ALL_IN, 0
 
         # Update round state
@@ -190,22 +202,31 @@ class Game:
         # check if winner all in last round
         if self.player_history[PokerRound.RIVER.value]["player_actions"][winner] == PokerAction.ALL_IN:
             # TODO: split pot
+            win_amount = 0
             for r in range(1, 5):
-                self.score[winner] += self.player_history[r]["player_bets"][winner]
-            
-            remain = self.total_pot - self.score[winner]
-            for player in self.active_players:
-                if player != winner:
-                    self.score[player] = remain / len(self.active_players)
+                win_amount += self.player_history[r]["player_bets"][winner]
 
-            print(f"Player {winner} wins with hand {self.hands[winner]} and all in")
+            if(win_amount * 2 > self.total_pot):
+                self.score[winner] = self.total_pot
+            else:
+                remain = self.total_pot - win_amount * 2
+                for player in self.active_players:
+                    self.score[player] += remain / (len(self.active_players))
+                self.score[winner] += win_amount * 2
+            if self.debug:
+                print(f"Player {winner} wins with hand {self.hands[winner]} and all in")
         else:
             self.score[winner] = self.total_pot
-            print(f"Player {winner} wins with hand {self.hands[winner]}")
+            if self.debug:
+                print(f"Player {winner} wins with hand {self.hands[winner]}")
 
         for player in self.players:
             for r in range(1, 5):
                 if player in self.player_history[r]["player_bets"]:
                     self.score[player] -= self.player_history[r]["player_bets"][player]
 
-        print(f"Scores: {self.score}")
+        if self.debug:
+            print(f"Scores: {self.score}")
+
+    def get_final_score(self):
+        return self.score
