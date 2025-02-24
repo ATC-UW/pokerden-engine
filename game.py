@@ -89,6 +89,12 @@ class RoundState:
         self.player_bets = {player: 0 for player in active_players}
         self.player_actions = {}
 
+    def get_current_player(self) -> Set[int]:
+        """Get the current player in the round"""
+        if len(self.waiting_for) == 0:
+            return set()
+        return self.waiting_for
+
 class Game:
     def __init__(self, debug: bool = False):
         self.debug = debug
@@ -113,6 +119,22 @@ class Game:
         if self.debug:
             s = f"Players: {self.players} \n Active Players: {self.active_players} \n Hands: {self.hands} \n Board: {self.board} \n Round Index: {self.round_index} \n Total Pot: {self.total_pot} \n Historical Pots: {self.historical_pots} \n Player History: {self.player_history} \n \t Current Round: \n {self.current_round}"
             print(s)
+
+    def is_next_round(self):
+        can_continue = self.round_index < len(GAME_ROUNDS) - 1
+        return can_continue and self.current_round.is_round_complete()
+    
+    def is_game_over(self):
+        return self.round_index >= len(GAME_ROUNDS) - 1
+    
+    def get_current_round(self):
+        return GAME_ROUNDS[self.round_index]
+    
+    def get_current_player(self):
+        return self.current_round.get_current_player()
+    
+    def get_current_waiting_for(self):
+        return self.current_round.get_current_player()
 
     def start_game(self):
         self.deck = PokerDeck()
