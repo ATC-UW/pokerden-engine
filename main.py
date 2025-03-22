@@ -5,6 +5,8 @@ import uuid
 from game import Game
 import argparse
 
+from message import GAME_STATE
+
 class PokerEngineServer:
     def __init__(self, host='localhost', port=5000, num_players=2, turn_timeout=30, debug=False):
         self.host = host
@@ -66,6 +68,8 @@ class PokerEngineServer:
             self.game_in_progress = True
         
         self.broadcast("Game starting!")
+
+        self.broadcast("Game state!" + GAME_STATE(self.game.round_num, self.game.community_cards, self.game.players, self.game.pot, self.game.current_player, self.game.current_bet, self.game.min_raise, self.game.max_raise))
 
         for(player_id, conn) in self.player_connections.items():
             conn.sendall(f"Welcome, Player {player_id}!".encode('utf-8'))

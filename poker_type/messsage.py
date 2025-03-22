@@ -1,18 +1,5 @@
 from enum import Enum
 
-class PokerAction(Enum):
-    FOLD = 1
-    CHECK = 2
-    CALL = 3
-    RAISE = 4
-    ALL_IN = 5
-
-class PokerRound(Enum):
-    UNSTARTED = 0
-    PREFLOP = 1
-    FLOP = 2
-    TURN = 3
-    RIVER = 4
 
 class MessageType(Enum):
     CONNECT = 0
@@ -25,4 +12,3 @@ class MessageType(Enum):
     GAME_END = 7
     TIME_STAMPT = 8
     GAME_STATE = 9
-    
