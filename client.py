@@ -1,5 +1,24 @@
+import json
 import socket
 import threading
+from poker_type.utils import get_message_type_name
+
+def handle_messages(message):
+    """ Handle messages from the server. """
+    json_message = json.loads(message)
+    message_type = json_message.get('type')
+    message = json_message.get('message')
+    if message_type is None:
+        print("Invalid message type")
+    
+    message_type_name = get_message_type_name(message_type)
+    print(f"Message type: {message_type_name}")
+
+    print(f"Server: {message}")
+
+def prompt_for_input():
+    """ Prompt the user for input. """
+    return input("Enter message: ")
 
 def receive_messages(client_socket):
     """ Continuously receive messages from the server. """
@@ -8,7 +27,9 @@ def receive_messages(client_socket):
             message = client_socket.recv(1024).decode('utf-8')
             if not message:
                 break
-            print(f"Server: {message}")
+            handle_messages(message)
+
+
         except Exception as e:
             print(f"Error receiving message: {e}")
             break

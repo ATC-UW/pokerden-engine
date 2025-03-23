@@ -5,7 +5,7 @@ import uuid
 from game.game import Game
 import argparse
 
-from message import GAME_STATE
+from message import GAME_STATE, TEXT
 from poker_type.utils import get_round_name
 
 class PokerEngineServer:
@@ -26,6 +26,7 @@ class PokerEngineServer:
         self.server_lock = threading.Lock()
         self.game_lock = threading.Lock()
         self.running = True
+        self.current_player_idx = 0
 
     def start_server(self):
         try:
@@ -68,17 +69,22 @@ class PokerEngineServer:
         with self.game_lock:
             self.game_in_progress = True
         
-        self.broadcast("Game starting!")
+        self.broadcast_text("Game starting!")
         self.game.start_game()
         self.broadcast_game_state()
 
+        self.current_player_idx = 0
+
+        waiting_for = self.game.get_current_waiting_for()
+        print(f"Waiting for: {waiting_for}")
+
         for(player_id, conn) in self.player_connections.items():
-            conn.sendall(f"Welcome, Player {player_id}!".encode('utf-8'))
+            self.send_text_message(player_id, f"Welcome to the game! Your ID is {player_id}")
 
         try:
             while self.running and self.game_in_progress:
                 for player_id, conn in list(self.player_connections.items()):
-                    conn.sendall(b"Your turn. Enter action: ")
+                    self.send_text_message(player_id, "Your turn. Enter action: ")
                     action = conn.recv(1024).decode('utf-8')
                     if not action:
                         self.remove_player(player_id)
@@ -90,12 +96,28 @@ class PokerEngineServer:
             self.game_in_progress = False
             self.stop_server()
 
+    def send_message(self, player_id, message):
+        """
+        Send a message to a player in raw text.
+        """
+        if player_id in self.player_connections:
+            self.player_connections[player_id].sendall(message.encode('utf-8'))
+
+    def send_text_message(self, player_id, message):
+        mes = TEXT(message)
+        self.send_message(player_id, mes.serialize())
+        print(f"Sent message to player {player_id}: {message}")
+
     def broadcast(self, message):
         for player_id, conn in self.player_connections.items():
             try:
                 conn.sendall(message.encode('utf-8'))
             except:
                 self.remove_player(player_id)
+
+    def broadcast_text(self, message):
+        mes = TEXT(message)
+        self.broadcast(str(mes))
 
     def broadcast_game_state(self):
         round_name = get_round_name(self.game.round_index)

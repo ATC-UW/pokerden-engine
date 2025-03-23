@@ -14,6 +14,7 @@ class MessageType(Enum):
     GAME_END = 7
     TIME_STAMPT = 8
     GAME_STATE = 9
+    MESSAGE = 10
 
 @dataclass
 class GameStateMessage():

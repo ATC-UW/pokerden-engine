@@ -18,8 +18,8 @@ class START(Message):
         self.type = MessageType.GAME_START
 
     def __str__(self, message):
-        return json.dumps({"type": self.type, "message": self.message})
-    
+        return json.dumps({"type": self.type.value, "message": self.message})
+
     @staticmethod
     def parse(message_str):
         data = json.loads(message_str)
@@ -27,6 +27,24 @@ class START(Message):
             return START(data["message"])
         return Message(data["message"])
     
+class TEXT(Message):
+    def __init__(self, message):
+        self.message: str = message
+        self.type = MessageType.MESSAGE
+    
+    def serialize(self):
+        return json.dumps({"type": self.type.value, "message": self.message})
+    
+    def __str__(self):
+        return self.serialize()
+    
+    @staticmethod
+    def parse(message_str):
+        data = json.loads(message_str)
+        if data["type"] == str(MessageType.MESSAGE):
+            return TEXT(data["message"])
+        raise ValueError("Invalid message type")
+
 class GAME_STATE(Message):
     def __init__(self, game_state: GameStateMessage):
         self.message: GameStateMessage = game_state
@@ -34,7 +52,7 @@ class GAME_STATE(Message):
 
     def serialize(self):
         return json.dumps({
-            "type": str(self.type),
+            "type": self.type.value,
             "message": {
                 "round_num": self.message.round_num,
                 "round": self.message.round,
