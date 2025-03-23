@@ -1,5 +1,7 @@
+from dataclasses import dataclass
 from enum import Enum
-
+import json
+from typing import List, Dict
 
 class MessageType(Enum):
     CONNECT = 0
@@ -12,3 +14,14 @@ class MessageType(Enum):
     GAME_END = 7
     TIME_STAMPT = 8
     GAME_STATE = 9
+
+@dataclass
+class GameStateMessage():
+    round_num: int
+    round: str
+    community_cards: List
+    pot: int
+    current_player: int
+    current_bet: int
+    min_raise: int
+    max_raise: int

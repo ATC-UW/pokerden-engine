@@ -1,6 +1,6 @@
 import json
-from poker_types import MessageType
-
+from poker_type.messsage import GameStateMessage, MessageType
+from eval7 import Card
 
 class Message:
     def __init__(self, message):
@@ -28,27 +28,45 @@ class START(Message):
         return Message(data["message"])
     
 class GAME_STATE(Message):
-    def __init__(self, round_num, community_cards, players, pot, current_player, current_bet, min_raise, max_raise):
-        self.message = {
-            "round_num": round_num,
-            "community_cards": community_cards,
-            "players": players,
-            "pot": pot,
-            "current_player": current_player,
-            "current_bet": current_bet,
-            "min_raise": min_raise,
-            "max_raise": max_raise
-        }
+    def __init__(self, game_state: GameStateMessage):
+        self.message: GameStateMessage = game_state
         self.type = MessageType.GAME_STATE
 
+    def serialize(self):
+        return json.dumps({
+            "type": str(self.type),
+            "message": {
+                "round_num": self.message.round_num,
+                "round": self.message.round,
+                "community_cards": [str(card) for card in self.message.community_cards],
+                "pot": self.message.pot,
+                "current_player": list(self.message.current_player),
+                "current_bet": self.message.current_bet,
+                "min_raise": self.message.min_raise,
+                "max_raise": self.message.max_raise
+            }
+        })
+    
     def __str__(self):
-        return json.dumps({"type": self.type, "message": self.message})
+        return self.serialize()
     
     @staticmethod
     def parse(message_str):
         data = json.loads(message_str)
-        if data["type"] == MessageType.GAME_STATE:
-            return GAME_STATE(data["round_num"], data["community_cards"], data["players"], data["pot"], data["current_player"], data["current_bet"], data["min_raise"], data["max_raise"])
+        if data["type"] == str(MessageType.GAME_STATE):
+            msg = data["message"]
+            # Convert back into GameStateMessage object
+            game_state = GameStateMessage(
+                round_num=msg["round_num"],
+                round=msg["round"],
+                community_cards=[Card(c) for c in msg["community_cards"]],
+                pot=msg["pot"],
+                current_player=set(msg["current_player"]),
+                current_bet=msg["current_bet"],
+                min_raise=msg["min_raise"],
+                max_raise=msg["max_raise"]
+            )
+            return GAME_STATE(game_state)
         raise ValueError("Invalid message type")
     
 class REQUEST_PLAYER_MESSAGE(Message):

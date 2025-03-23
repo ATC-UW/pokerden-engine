@@ -2,10 +2,11 @@ import socket
 import threading
 from typing import Dict, Tuple
 import uuid
-from game import Game
+from game.game import Game
 import argparse
 
 from message import GAME_STATE
+from poker_type.utils import get_round_name
 
 class PokerEngineServer:
     def __init__(self, host='localhost', port=5000, num_players=2, turn_timeout=30, debug=False):
@@ -68,8 +69,8 @@ class PokerEngineServer:
             self.game_in_progress = True
         
         self.broadcast("Game starting!")
-
-        self.broadcast("Game state!" + GAME_STATE(self.game.round_num, self.game.community_cards, self.game.players, self.game.pot, self.game.current_player, self.game.current_bet, self.game.min_raise, self.game.max_raise))
+        self.game.start_game()
+        self.broadcast_game_state()
 
         for(player_id, conn) in self.player_connections.items():
             conn.sendall(f"Welcome, Player {player_id}!".encode('utf-8'))
@@ -95,6 +96,15 @@ class PokerEngineServer:
                 conn.sendall(message.encode('utf-8'))
             except:
                 self.remove_player(player_id)
+
+    def broadcast_game_state(self):
+        round_name = get_round_name(self.game.round_index)
+        print(f"Broadcasting game state for round {round_name}")
+
+        game_state = self.game.get_game_state()
+        message = GAME_STATE(game_state)
+        
+        self.broadcast(str(message))
 
     def process_action(self, player_id, action):
         print(f"Player {player_id} action: {action}")
