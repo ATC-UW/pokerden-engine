@@ -8,6 +8,9 @@ class Message:
 
     def __str__(self):
         return self.message
+    
+    def serialize(self):
+        return "Not implemented"
 
     def __repr__(self):
         return self.message
@@ -17,13 +20,16 @@ class START(Message):
         self.message = message
         self.type = MessageType.GAME_START
 
-    def __str__(self, message):
+    def serialize(self):
         return json.dumps({"type": self.type.value, "message": self.message})
+
+    def __str__(self, message):
+        return self.serialize()
 
     @staticmethod
     def parse(message_str):
         data = json.loads(message_str)
-        if data["type"] == MessageType.GAME_START:
+        if data["type"] == MessageType.GAME_START.value:
             return START(data["message"])
         return Message(data["message"])
     
@@ -71,7 +77,7 @@ class GAME_STATE(Message):
     @staticmethod
     def parse(message_str):
         data = json.loads(message_str)
-        if data["type"] == str(MessageType.GAME_STATE):
+        if data["type"] == MessageType.GAME_STATE.value:
             msg = data["message"]
             # Convert back into GameStateMessage object
             game_state = GameStateMessage(

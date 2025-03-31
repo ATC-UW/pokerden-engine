@@ -45,6 +45,11 @@ class RoundState:
             self.waiting_for.discard(player_id)
             self.player_actions[player_id] = PokerAction.CHECK
         elif action == PokerAction.CALL:
+            """
+            Call the current raise amount, the amount is the difference between the
+            current raise amount and the player's current bet. 
+            input amount doesn't matter
+            """
             call_amount = self.raise_amount - self.player_bets[player_id]
             if call_amount <= 0:
                 raise ValueError("Cannot call with less than the raise amount")

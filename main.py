@@ -5,7 +5,7 @@ import uuid
 from game.game import Game
 import argparse
 
-from message import GAME_STATE, TEXT
+from message import GAME_STATE, START, TEXT, Message
 from poker_type.utils import get_round_name
 
 class PokerEngineServer:
@@ -70,7 +70,10 @@ class PokerEngineServer:
             self.game_in_progress = True
         
         self.broadcast_text("Game starting!")
+
         self.game.start_game()
+        start_message = START("Game initialized")
+        self.broadcast_message(start_message)
         self.broadcast_game_state()
 
         self.current_player_idx = 0
@@ -100,6 +103,7 @@ class PokerEngineServer:
         """
         Send a message to a player in raw text.
         """
+        message = message + "\n"
         if player_id in self.player_connections:
             self.player_connections[player_id].sendall(message.encode('utf-8'))
 
@@ -109,6 +113,7 @@ class PokerEngineServer:
         print(f"Sent message to player {player_id}: {message}")
 
     def broadcast(self, message):
+        message = message + "\n"
         for player_id, conn in self.player_connections.items():
             try:
                 conn.sendall(message.encode('utf-8'))
@@ -118,6 +123,9 @@ class PokerEngineServer:
     def broadcast_text(self, message):
         mes = TEXT(message)
         self.broadcast(str(mes))
+
+    def broadcast_message(self, message: Message):
+        self.broadcast(message.serialize())
 
     def broadcast_game_state(self):
         round_name = get_round_name(self.game.round_index)

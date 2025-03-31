@@ -5,16 +5,24 @@ from poker_type.utils import get_message_type_name
 
 def handle_messages(message):
     """ Handle messages from the server. """
-    json_message = json.loads(message)
-    message_type = json_message.get('type')
-    message = json_message.get('message')
-    if message_type is None:
-        print("Invalid message type")
-    
-    message_type_name = get_message_type_name(message_type)
-    print(f"Message type: {message_type_name}")
+    lines = message.split('\n')
+    for line in lines:
+        if line == '':  # Skip empty lines
+            continue
+        try:
+            json_message = json.loads(line)
+        except json.JSONDecodeError:
+            print(f"Error decoding message: {line}")
+            continue
+        message_type = json_message.get('type')
+        message = json_message.get('message')
+        if message_type is None:
+            print("Invalid message type")
+        
+        message_type_name = get_message_type_name(message_type)
+        print(f"Message type: {message_type_name}")
 
-    print(f"Server: {message}")
+        print(f"Server: {message}")
 
 def prompt_for_input():
     """ Prompt the user for input. """
