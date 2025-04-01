@@ -1,6 +1,7 @@
 import json
 import socket
 import threading
+from player import SimplePlayer
 from poker_type.utils import get_message_type_name
 
 def prompt_for_input():
@@ -38,7 +39,9 @@ class Runner:
             
             message_type_name = get_message_type_name(message_type)
             print(f"Message type: {message_type_name}")
-
+            if message_type == 9: 
+                # GameStateMessage
+                self.bot.on_start()
             print(f"Server: {message}")
 
     def receive_messages(self):
@@ -79,6 +82,8 @@ def main():
     port = 5000  # Change if needed
     
     runner = Runner(host, port)
+    simple_bot = SimplePlayer()
+    runner.set_bot(simple_bot)
     runner.run()
 
 

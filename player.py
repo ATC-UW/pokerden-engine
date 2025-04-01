@@ -52,3 +52,6 @@ class SimplePlayer(Player):
 
     def on_end_round(self, game_state, round_state, result):
         print("Player called on end round")
+
+    def on_end_game(self, game_state, round_state, result):
+        print("Player called on end game")

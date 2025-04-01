@@ -26,3 +26,5 @@ class GameStateMessage():
     current_bet: int
     min_raise: int
     max_raise: int
+    player_bets: Dict[int, int]
+    player_actions: Dict[int, str]

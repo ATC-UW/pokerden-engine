@@ -6,7 +6,7 @@ from deck import PokerDeck
 from game.round_state import RoundState
 from poker_type.game import PokerRound, PokerAction
 from poker_type.messsage import GameStateMessage
-from poker_type.utils import get_round_name
+from poker_type.utils import get_poker_action_name_from_enum, get_round_name
 
 GAME_ROUNDS = [PokerRound.UNSTARTED, PokerRound.PREFLOP, PokerRound.FLOP, PokerRound.TURN, PokerRound.RIVER]
 
@@ -170,6 +170,10 @@ class Game:
     
     def get_game_state(self) -> GameStateMessage:
         round_name = get_round_name(self.round_index)
+        actions_text = {}
+        for player in self.current_round.player_actions:
+            actions_text[player] = get_poker_action_name_from_enum(self.current_round.player_actions[player])
+
         return GameStateMessage(
             round_num=self.round_index,
             round=round_name,
@@ -177,6 +181,8 @@ class Game:
             pot=self.current_round.pot,
             current_player=self.current_round.get_current_player(),
             current_bet=self.current_round.raise_amount,
+            player_bets=self.current_round.player_bets,
+            player_actions=actions_text,
             min_raise=self.current_round.raise_amount,
             max_raise=self.current_round.raise_amount * 2,
         )

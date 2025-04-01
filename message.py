@@ -66,6 +66,8 @@ class GAME_STATE(Message):
                 "pot": self.message.pot,
                 "current_player": list(self.message.current_player),
                 "current_bet": self.message.current_bet,
+                "player_bets": self.message.player_bets,
+                "player_actions": self.message.player_actions,
                 "min_raise": self.message.min_raise,
                 "max_raise": self.message.max_raise
             }
@@ -87,6 +89,8 @@ class GAME_STATE(Message):
                 pot=msg["pot"],
                 current_player=set(msg["current_player"]),
                 current_bet=msg["current_bet"],
+                player_bets=msg["player_bets"],
+                player_actions=msg["player_actions"],
                 min_raise=msg["min_raise"],
                 max_raise=msg["max_raise"]
             )

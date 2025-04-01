@@ -1,4 +1,4 @@
-from poker_type.game import PokerRound
+from poker_type.game import PokerAction, PokerRound
 
 ROUND_NAMES_MAPPING_FROM_INDEX = {
     0: "Unstarted",
@@ -29,6 +29,40 @@ MESSAGE_TYPE_MAPPING = {
     9: "Game State",
     10: "Message"
 }
+
+POKER_ACTIONS_MAPPING_FROM_INDEX = {
+    1: "Fold",
+    2: "Check",
+    3: "Call",
+    4: "Raise",
+    5: "All In"
+}
+
+POKER_ACTIONS_MAPPING = {
+    PokerAction.FOLD: "Fold",
+    PokerAction.CHECK: "Check",
+    PokerAction.CALL: "Call",
+    PokerAction.RAISE: "Raise",
+    PokerAction.ALL_IN: "All In"
+}
+
+def get_poker_action_name(action: int) -> str:
+    if action not in POKER_ACTIONS_MAPPING_FROM_INDEX:
+        raise ValueError(f"Invalid action index: {action}")
+    
+    return POKER_ACTIONS_MAPPING_FROM_INDEX[action]
+
+def get_poker_action_name_from_enum(action: PokerAction) -> str:
+    if action not in POKER_ACTIONS_MAPPING:
+        raise ValueError(f"Invalid action enum: {action}")
+    
+    return POKER_ACTIONS_MAPPING[action]
+
+def get_poker_action_enum(action_name: str) -> PokerAction:
+    for action, name in POKER_ACTIONS_MAPPING.items():
+        if name.lower() == action_name.lower():
+            return action
+    raise ValueError(f"Invalid action name: {action_name}")
 
 def get_message_type_name(message_type: int) -> str:
     if message_type not in MESSAGE_TYPE_MAPPING:
