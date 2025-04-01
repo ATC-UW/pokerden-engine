@@ -2,6 +2,8 @@ import json
 import socket
 import threading
 from player import SimplePlayer
+from poker_type.client import RoundStateClient
+from poker_type.messsage import MessageType
 from poker_type.utils import get_message_type_name
 
 def prompt_for_input():
@@ -14,7 +16,7 @@ class Runner:
         self.port = port
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.bot = None  # Placeholder for bot instance
-
+        self.current_round: RoundStateClient = None
 
     def set_bot(self, bot):
         """ Set the bot instance. """
@@ -39,9 +41,28 @@ class Runner:
             
             message_type_name = get_message_type_name(message_type)
             print(f"Message type: {message_type_name}")
-            if message_type == 9: 
-                # GameStateMessage
+            if message_type == MessageType.GAME_START.value: 
+                # Game start message
                 self.bot.on_start()
+
+            elif message_type == MessageType.GAME_STATE.value:
+                # Game state update message
+                self.current_round = RoundStateClient(
+                    round=message['round'],
+                    round_num=message['round_num'],
+                    community_cards=message['community_cards'],
+                    pot=message['pot'],
+                    current_player=message['current_player'],
+                    current_bet=message['current_bet'],
+                    player_bets=message['player_bets'],
+                    player_actions=message['player_actions'],
+                    min_raise=message['min_raise'],
+                    max_raise=message['max_raise'],
+                )
+
+            elif message_type == MessageType.ROUND_START.value:
+                self.bot.on_round_start(None, self.current_round)
+
             print(f"Server: {message}")
 
     def receive_messages(self):

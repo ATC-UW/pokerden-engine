@@ -28,3 +28,8 @@ class GameStateMessage():
     max_raise: int
     player_bets: Dict[int, int]
     player_actions: Dict[int, str]
+
+@dataclass
+class RequestPlayerActionMessage():
+    player_id: int
+    time_left: int

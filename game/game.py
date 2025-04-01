@@ -45,11 +45,11 @@ class Game:
     def get_current_round(self):
         return GAME_ROUNDS[self.round_index]
     
-    def get_current_player(self):
-        return self.current_round.get_current_player()
-    
     def get_current_waiting_for(self):
         return self.current_round.get_current_player()
+    
+    def is_current_round_complete(self):
+        return self.current_round.is_round_complete()
 
     def start_game(self):
         self.deck = PokerDeck()
@@ -92,7 +92,7 @@ class Game:
             self.active_players.remove(player_id)
 
     def start_round(self):
-        if self.round_index >= len(GAME_ROUNDS) - 1:
+        if self.is_game_over():
             self.end_game()
             return
 

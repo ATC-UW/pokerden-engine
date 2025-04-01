@@ -5,8 +5,8 @@ import uuid
 from game.game import Game
 import argparse
 
-from message import GAME_STATE, START, TEXT, Message
-from poker_type.utils import get_round_name
+from message import GAME_STATE, REQUEST_PLAYER_MESSAGE, ROUND_START, START, TEXT, Message
+from poker_type.utils import get_round_name, get_round_name_from_enum
 
 class PokerEngineServer:
     def __init__(self, host='localhost', port=5000, num_players=2, turn_timeout=30, debug=False):
@@ -72,20 +72,60 @@ class PokerEngineServer:
         self.broadcast_text("Game starting!")
 
         self.game.start_game()
-        start_message = START("Game initialized")
+        start_message = START("Game initiated!")
         self.broadcast_message(start_message)
         self.broadcast_game_state()
 
+        round_start_message = ROUND_START(get_round_name_from_enum(self.game.get_current_round()))
         self.current_player_idx = 0
 
+        self.broadcast_message(round_start_message)
+
         waiting_for = self.game.get_current_waiting_for()
-        print(f"Waiting for: {waiting_for}")
 
         for(player_id, conn) in self.player_connections.items():
             self.send_text_message(player_id, f"Welcome to the game! Your ID is {player_id}")
 
         try:
             while self.running and self.game_in_progress:
+                if self.game.is_game_over():
+                    self.broadcast_text("Game over!")
+                    self.game_in_progress = False
+                    self.stop_server()
+                    break
+                
+                while not self.game.is_current_round_complete():
+                    waiting_for = self.game.get_current_waiting_for()
+                    start_player_idx = self.current_player_idx % len(waiting_for)
+                    length = len(waiting_for)
+                    queue = list(waiting_for)
+
+                    print("Current player in game: ", waiting_for)
+
+                    for i in range(start_player_idx, start_player_idx + length):
+                        player_id = queue[i % length]
+                        conn = self.player_connections[player_id]
+
+                        if player_id in self.player_connections:
+                            request_action_message = REQUEST_PLAYER_MESSAGE(player_id, 0)
+                            self.send_message(player_id, str(request_action_message))
+
+                            try:
+                                conn.settimeout(self.turn_timeout)
+                                action = conn.recv(1024).decode('utf-8')
+                                if not action:
+                                    self.remove_player(player_id)
+                                    break
+                            except socket.timeout:
+                                self.send_text_message(player_id, "Timeout!")
+                                action = "timeout"
+                            except Exception as e:
+                                print(f"Error receiving action from player {player_id}: {e}")
+                                self.remove_player(player_id)
+                                break
+                            
+
+
                 for player_id, conn in list(self.player_connections.items()):
                     self.send_text_message(player_id, "Your turn. Enter action: ")
                     action = conn.recv(1024).decode('utf-8')

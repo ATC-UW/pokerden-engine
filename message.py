@@ -1,5 +1,5 @@
 import json
-from poker_type.messsage import GameStateMessage, MessageType
+from poker_type.messsage import GameStateMessage, MessageType, RequestPlayerActionMessage
 from eval7 import Card
 
 class Message:
@@ -31,6 +31,43 @@ class START(Message):
         data = json.loads(message_str)
         if data["type"] == MessageType.GAME_START.value:
             return START(data["message"])
+        return Message(data["message"])
+    
+
+class ROUND_START(Message):
+    def __init__(self, round):
+        self.round = round
+        self.type = MessageType.ROUND_START
+
+    def serialize(self):
+        return json.dumps({"type": self.type.value, "message": self.round})
+    
+    def __str__(self):
+        return self.serialize()
+    
+    @staticmethod
+    def parse(message_str):
+        data = json.loads(message_str)
+        if data["type"] == MessageType.ROUND_START.value:
+            return ROUND_START(data["message"])
+        return Message(data["message"])
+    
+class ROUND_END(Message):
+    def __init__(self, round):
+        self.round = round
+        self.type = MessageType.ROUND_END
+
+    def serialize(self):
+        return json.dumps({"type": self.type.value, "message": self.round})
+    
+    def __str__(self):
+        return self.serialize()
+    
+    @staticmethod
+    def parse(message_str):
+        data = json.loads(message_str)
+        if data["type"] == MessageType.ROUND_END.value:
+            return ROUND_END(data["message"])
         return Message(data["message"])
     
 class TEXT(Message):
@@ -99,18 +136,25 @@ class GAME_STATE(Message):
     
 class REQUEST_PLAYER_MESSAGE(Message):
     def __init__(self, player_id, time_left):
-        self.message = {
-            "player_id": player_id,
-            "time_left": time_left
-        }
+        self.message: RequestPlayerActionMessage = RequestPlayerActionMessage(
+                player_id=player_id,
+                time_left=time_left
+            )
         self.type = MessageType.REQUEST_PLAYER_ACTION
+    
+    def serialize(self):
+        return json.dumps({
+            "type": self.type.value,
+            "player_id": self.message.player_id,
+            "time_left": self.message.time_left
+        })
 
     def __str__(self):
-        return json.dumps({"type": self.type, "message": self.message})
+        return self.serialize()
     
     @staticmethod
     def parse(message_str):
         data = json.loads(message_str)
-        if data["type"] == MessageType.REQUEST_PLAYER_ACTION:
+        if data["type"] == MessageType.REQUEST_PLAYER_ACTION.value:
             return REQUEST_PLAYER_MESSAGE(data["player_id"], data["time_left"])
         raise ValueError("Invalid message type")
