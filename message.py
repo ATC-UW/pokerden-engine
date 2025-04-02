@@ -33,10 +33,27 @@ class START(Message):
             return START(data["message"])
         return Message(data["message"])
     
+class ROUND_END(Message):
+    def __init__(self, message):
+        self.message = message
+        self.type = MessageType.ROUND_END
+
+    def serialize(self):
+        return json.dumps({"type": self.type.value, "round": self.message})
+
+    def __str__(self, message):
+        return self.serialize()
+
+    @staticmethod
+    def parse(message_str):
+        data = json.loads(message_str)
+        if data["type"] == MessageType.ROUND_END.value:
+            return ROUND_END(data["message"])
+        return Message(data["message"])
 
 class ROUND_START(Message):
-    def __init__(self, round):
-        self.round = round
+    def __init__(self, message):
+        self.round = message
         self.type = MessageType.ROUND_START
 
     def serialize(self):

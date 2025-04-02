@@ -196,29 +196,20 @@ class PokerEngineServer:
         self.broadcast(str(message))
 
     def process_action(self, player_id, action):
-        # Process the action received from the player
+        # Process the action received from the player, broadcast the game state if successful
         action = action.strip()
-
         action_message = PLAYER_ACTION.parse(action)
-
         action_type = action_message.message["action"]
-        print(get_poker_action_name(action_type))
-
-        print(f"Processing action from player {player_id}: {action_type}")
 
         action_tuple = (get_poker_action_enum_from_index(action_type), action_message.message["amount"])
-        print(f"Action tuple: {action_tuple}")
 
         try:
             self.game.update_game(player_id, action_tuple)
-            self.broadcast_game_state()
         except Exception as e:
             print(f"Error processing action from player {player_id}: {e}")
             return False
 
-        self.broadcast(f"Player {player_id} did: {action}")
-
-
+        self.broadcast_game_state()
         return True
 
     def remove_player(self, player_id):
