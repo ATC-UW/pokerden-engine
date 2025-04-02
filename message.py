@@ -145,8 +145,10 @@ class REQUEST_PLAYER_MESSAGE(Message):
     def serialize(self):
         return json.dumps({
             "type": self.type.value,
-            "player_id": self.message.player_id,
-            "time_left": self.message.time_left
+            "message": {
+                "player_id": self.message.player_id,
+                "time_left": self.message.time_left
+            }
         })
 
     def __str__(self):
@@ -157,4 +159,30 @@ class REQUEST_PLAYER_MESSAGE(Message):
         data = json.loads(message_str)
         if data["type"] == MessageType.REQUEST_PLAYER_ACTION.value:
             return REQUEST_PLAYER_MESSAGE(data["player_id"], data["time_left"])
+        raise ValueError("Invalid message type")
+    
+class PLAYER_ACTION(Message):
+    def __init__(self, player_id, action, amount):
+        self.message = {
+            "player_id": player_id,
+            "action": action,
+            "amount": amount
+        }
+        self.type = MessageType.PLAYER_ACTION
+    
+    def serialize(self):
+        return json.dumps({"type": self.type.value, "message": {
+            "player_id": self.message["player_id"],
+            "action": self.message["action"],
+            "amount": self.message["amount"]
+        }})
+    
+    def __str__(self):
+        return self.serialize()
+    
+    @staticmethod
+    def parse(message_str):
+        data = json.loads(message_str)
+        if data["type"] == MessageType.PLAYER_ACTION.value:
+            return PLAYER_ACTION(data["message"]["player_id"], data["message"]["action"], data["message"]["amount"])
         raise ValueError("Invalid message type")

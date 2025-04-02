@@ -5,8 +5,8 @@ import uuid
 from game.game import Game
 import argparse
 
-from message import GAME_STATE, REQUEST_PLAYER_MESSAGE, ROUND_START, START, TEXT, Message
-from poker_type.utils import get_round_name, get_round_name_from_enum
+from message import GAME_STATE, PLAYER_ACTION, REQUEST_PLAYER_MESSAGE, ROUND_START, START, TEXT, Message
+from poker_type.utils import get_poker_action_name, get_round_name, get_round_name_from_enum
 
 class PokerEngineServer:
     def __init__(self, host='localhost', port=5000, num_players=2, turn_timeout=30, debug=False):
@@ -116,6 +116,15 @@ class PokerEngineServer:
                                 if not action:
                                     self.remove_player(player_id)
                                     break
+
+                                else:
+                                    action = action.strip()
+                                    if action == "":
+                                        self.send_text_message(player_id, "Invalid action. Try again.")
+                                        continue
+                                    
+                                    print(f"Player {player_id} action: {action}")
+                                    self.process_action(player_id, action)
                             except socket.timeout:
                                 self.send_text_message(player_id, "Timeout!")
                                 action = "timeout"
@@ -123,7 +132,6 @@ class PokerEngineServer:
                                 print(f"Error receiving action from player {player_id}: {e}")
                                 self.remove_player(player_id)
                                 break
-                            
 
 
                 for player_id, conn in list(self.player_connections.items()):
@@ -177,7 +185,16 @@ class PokerEngineServer:
         self.broadcast(str(message))
 
     def process_action(self, player_id, action):
-        print(f"Player {player_id} action: {action}")
+        # Process the action received from the player
+        action = action.strip()
+
+        action_message = PLAYER_ACTION.parse(action)
+
+        action_type = action_message.message["action"]
+        print(get_poker_action_name(action_type))
+
+        print(f"Processing action from player {player_id}: {action_type}")
+
         self.broadcast(f"Player {player_id} did: {action}")
 
     def remove_player(self, player_id):

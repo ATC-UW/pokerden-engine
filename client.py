@@ -17,6 +17,7 @@ class Runner:
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.bot = None  # Placeholder for bot instance
         self.current_round: RoundStateClient = None
+        self.player_id = None  # Placeholder for player ID
 
     def set_bot(self, bot):
         """ Set the bot instance. """
@@ -63,7 +64,28 @@ class Runner:
             elif message_type == MessageType.ROUND_START.value:
                 self.bot.on_round_start(None, self.current_round)
 
+            elif message_type == MessageType.REQUEST_PLAYER_ACTION.value:
+                player_id = message['player_id']
+                # TODO Store player id from the beginngin, bad code here
+                action, amount = self.bot.get_action(None, self.current_round)
+
+                print(action, amount)
+                self.send_action_to_server(player_id, action.value, amount)
+
             print(f"Server: {message}")
+
+    def send_action_to_server(self, player_id, action, amount):
+        message  = {
+            'type': MessageType.PLAYER_ACTION.value,
+            'message': {
+                'player_id': player_id,
+                'action': action,
+                'amount': amount
+            }
+        }
+
+        self.client_socket.send(json.dumps(message).encode('utf-8'))
+
 
     def receive_messages(self):
         """ Continuously receive messages from the server. """
