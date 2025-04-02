@@ -6,7 +6,7 @@ from game.game import Game
 import argparse
 
 from message import GAME_STATE, PLAYER_ACTION, REQUEST_PLAYER_MESSAGE, ROUND_START, START, TEXT, Message
-from poker_type.utils import get_poker_action_name, get_round_name, get_round_name_from_enum
+from poker_type.utils import get_poker_action_enum_from_index, get_poker_action_name, get_round_name, get_round_name_from_enum
 
 class PokerEngineServer:
     def __init__(self, host='localhost', port=5000, num_players=2, turn_timeout=30, debug=False):
@@ -96,43 +96,54 @@ class PokerEngineServer:
                 
                 while not self.game.is_current_round_complete():
                     waiting_for = self.game.get_current_waiting_for()
-                    start_player_idx = self.current_player_idx % len(waiting_for)
                     length = len(waiting_for)
                     queue = list(waiting_for)
+                    if length == 0:
+                        break
 
                     print("Current player in game: ", waiting_for)
+                    start_player_idx = self.current_player_idx % length
 
-                    for i in range(start_player_idx, start_player_idx + length):
-                        player_id = queue[i % length]
+                    idx = start_player_idx
+                    while idx < start_player_idx + length:
+                        print(f"Current player index: {idx}, Player ID: {queue[idx % length]}")
+                        player_id = queue[idx % length]
                         conn = self.player_connections[player_id]
 
-                        if player_id in self.player_connections:
-                            request_action_message = REQUEST_PLAYER_MESSAGE(player_id, 0)
-                            self.send_message(player_id, str(request_action_message))
+                        if player_id not in self.player_connections:
+                            idx += 1
+                            continue  # Skip removed players
 
-                            try:
-                                conn.settimeout(self.turn_timeout)
-                                action = conn.recv(1024).decode('utf-8')
-                                if not action:
-                                    self.remove_player(player_id)
-                                    break
+                        request_action_message = REQUEST_PLAYER_MESSAGE(player_id, 0)
+                        self.send_message(player_id, str(request_action_message))
 
-                                else:
-                                    action = action.strip()
-                                    if action == "":
-                                        self.send_text_message(player_id, "Invalid action. Try again.")
-                                        continue
-                                    
-                                    print(f"Player {player_id} action: {action}")
-                                    self.process_action(player_id, action)
-                            except socket.timeout:
-                                self.send_text_message(player_id, "Timeout!")
-                                action = "timeout"
-                            except Exception as e:
-                                print(f"Error receiving action from player {player_id}: {e}")
+                        try:
+                            conn.settimeout(self.turn_timeout)
+                            action = conn.recv(1024).decode('utf-8')
+                            if not action:
                                 self.remove_player(player_id)
                                 break
 
+                            else:
+                                action = action.strip()
+                                if action == "":
+                                    self.send_text_message(player_id, "Invalid action. Try again.")
+                                    continue
+                                
+                                print(f"Player {player_id} action: {action}")
+                                ok = self.process_action(player_id, action)
+                                if not ok:
+                                    self.send_text_message(player_id, "Invalid action. Try again.")
+                                    continue
+                        except socket.timeout:
+                            self.send_text_message(player_id, "Timeout!")
+                            action = "timeout"
+                        except Exception as e:
+                            print(f"Error receiving action from player {player_id}: {e}")
+                            self.remove_player(player_id)
+                            break
+
+                        idx += 1                        
 
                 for player_id, conn in list(self.player_connections.items()):
                     self.send_text_message(player_id, "Your turn. Enter action: ")
@@ -195,7 +206,20 @@ class PokerEngineServer:
 
         print(f"Processing action from player {player_id}: {action_type}")
 
+        action_tuple = (get_poker_action_enum_from_index(action_type), action_message.message["amount"])
+        print(f"Action tuple: {action_tuple}")
+
+        try:
+            self.game.update_game(player_id, action_tuple)
+            self.broadcast_game_state()
+        except Exception as e:
+            print(f"Error processing action from player {player_id}: {e}")
+            return False
+
         self.broadcast(f"Player {player_id} did: {action}")
+
+
+        return True
 
     def remove_player(self, player_id):
         if player_id in self.player_connections:

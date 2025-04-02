@@ -58,6 +58,15 @@ def get_poker_action_name_from_enum(action: PokerAction) -> str:
     
     return POKER_ACTIONS_MAPPING[action]
 
+def get_poker_action_enum_from_index(action: int) -> PokerAction:
+    if action not in POKER_ACTIONS_MAPPING_FROM_INDEX:
+        raise ValueError(f"Invalid action index: {action}")
+    
+    for poker_action, name in POKER_ACTIONS_MAPPING.items():
+        if name.lower() == POKER_ACTIONS_MAPPING_FROM_INDEX[action].lower():
+            return poker_action
+    raise ValueError(f"Invalid action index: {action}")
+
 def get_poker_action_enum(action_name: str) -> PokerAction:
     for action, name in POKER_ACTIONS_MAPPING.items():
         if name.lower() == action_name.lower():

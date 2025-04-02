@@ -36,6 +36,9 @@ class RoundState:
 
         self.player_actions[player_id] = action
 
+        if player_id not in self.waiting_for:
+            raise ValueError("Player is not waiting for their turn")
+
         if action == PokerAction.FOLD:
             self.waiting_for.discard(player_id)
             self.player_actions[player_id] = PokerAction.FOLD
