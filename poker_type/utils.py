@@ -54,7 +54,7 @@ def get_poker_action_name(action: int) -> str:
 
 def get_poker_action_name_from_enum(action: PokerAction) -> str:
     if action not in POKER_ACTIONS_MAPPING:
-        raise ValueError(f"Invalid action enum: {action}")
+        raise ValueError(f"Invalid action 8888: {action}")
     
     return POKER_ACTIONS_MAPPING[action]
 

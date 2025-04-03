@@ -15,6 +15,43 @@ class Message:
     def __repr__(self):
         return self.message
     
+class CONNECT(Message):
+    def __init__(self, player_id):
+        self.message = player_id
+        self.type = MessageType.CONNECT
+
+    def serialize(self):
+        return json.dumps({"type": self.type.value, "message": self.message})
+    
+    def __str__(self):
+        return self.serialize()
+    
+    @staticmethod
+    def parse(message_str):
+        data = json.loads(message_str)
+        if data["type"] == MessageType.CONNECT.value:
+            return CONNECT(data["message"])
+        return Message(data["message"])
+
+    
+class END(Message):
+    def __init__(self, score):
+        self.message = score
+        self.type = MessageType.GAME_END
+
+    def serialize(self):
+        return json.dumps({"type": self.type.value, "message": self.message})
+
+    def __str__(self):
+        return self.serialize()
+
+    @staticmethod
+    def parse(message_str):
+        data = json.loads(message_str)
+        if data["type"] == MessageType.GAME_END.value:
+            return END(data["message"])
+        return Message(data["message"])
+    
 class START(Message):
     def __init__(self, message):
         self.message = message

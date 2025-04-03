@@ -172,6 +172,8 @@ class Game:
         round_name = get_round_name(self.round_index)
         actions_text = {}
         for player in self.current_round.player_actions:
+            if self.current_round.player_actions[player] == None:
+                continue
             actions_text[player] = get_poker_action_name_from_enum(self.current_round.player_actions[player])
 
         return GameStateMessage(

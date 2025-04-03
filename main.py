@@ -5,8 +5,24 @@ import uuid
 from game.game import Game
 import argparse
 
-from message import GAME_STATE, PLAYER_ACTION, REQUEST_PLAYER_MESSAGE, ROUND_START, START, TEXT, Message
-from poker_type.utils import get_poker_action_enum_from_index, get_poker_action_name, get_round_name, get_round_name_from_enum
+from message import (
+    CONNECT,
+    END, 
+    GAME_STATE,
+    PLAYER_ACTION, 
+    REQUEST_PLAYER_MESSAGE, 
+    ROUND_END, 
+    ROUND_START, 
+    START, TEXT, 
+    Message
+)
+
+from poker_type.game import PokerAction
+from poker_type.utils import (
+    get_poker_action_enum_from_index, 
+    get_round_name, 
+    get_round_name_from_enum
+)
 
 class PokerEngineServer:
     def __init__(self, host='localhost', port=5000, num_players=2, turn_timeout=30, debug=False):
@@ -19,7 +35,7 @@ class PokerEngineServer:
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        self.game = Game()
+        self.game = Game(self.debug)
         self.player_connections: Dict[int, socket.socket] = {}
         self.player_addresses: Dict[int, Tuple[str, int]] = {}
         self.game_in_progress = False
@@ -84,16 +100,27 @@ class PokerEngineServer:
         waiting_for = self.game.get_current_waiting_for()
 
         for(player_id, conn) in self.player_connections.items():
+            connect_message = CONNECT(player_id)
+            self.send_message(player_id, str(connect_message))
             self.send_text_message(player_id, f"Welcome to the game! Your ID is {player_id}")
 
         try:
             while self.running and self.game_in_progress:
-                if self.game.is_game_over():
+                if self.game.is_current_round_complete() and self.game.is_game_over():
                     self.broadcast_text("Game over!")
+                    score = self.game.get_final_score()
+                    for player_id in score.keys():
+                        end_message = END(score[player_id])
+                        self.send_message(player_id, str(end_message))
+                    # TODO: Add a reveal cards message
                     self.game_in_progress = False
                     self.stop_server()
                     break
+
+                self.broadcast_text("New round starting!")
+                self.broadcast_game_state()
                 
+                # round logic
                 while not self.game.is_current_round_complete():
                     waiting_for = self.game.get_current_waiting_for()
                     length = len(waiting_for)
@@ -118,8 +145,8 @@ class PokerEngineServer:
                         self.send_message(player_id, str(request_action_message))
 
                         try:
-                            conn.settimeout(self.turn_timeout)
-                            action = conn.recv(1024).decode('utf-8')
+                            conn.settimeout(1)
+                            action = conn.recv(4096).decode('utf-8')
                             if not action:
                                 self.remove_player(player_id)
                                 break
@@ -137,21 +164,33 @@ class PokerEngineServer:
                                     continue
                         except socket.timeout:
                             self.send_text_message(player_id, "Timeout!")
-                            action = "timeout"
+                            action = PLAYER_ACTION(player_id, PokerAction.FOLD.value, 0)
+
+                            ok = self.process_action(player_id, str(action))
+                            if not ok:
+                                self.send_text_message(player_id, "Invalid action. Try again.")
+                                continue
                         except Exception as e:
                             print(f"Error receiving action from player {player_id}: {e}")
                             self.remove_player(player_id)
                             break
 
-                        idx += 1                        
+                        idx += 1
 
-                for player_id, conn in list(self.player_connections.items()):
-                    self.send_text_message(player_id, "Your turn. Enter action: ")
-                    action = conn.recv(1024).decode('utf-8')
-                    if not action:
-                        self.remove_player(player_id)
-                    else:
-                        self.process_action(player_id, action)
+                # round end
+                end_round = ROUND_END(get_round_name_from_enum(self.game.get_current_round()))
+                self.game.end_round()
+                self.broadcast_game_state()
+
+                self.broadcast_message(end_round)
+
+
+                # next round
+                self.broadcast_game_state()
+                self.broadcast_message(round_start_message)
+                self.game.start_round()
+
+
         except Exception as e:
             print(f"Error running game: {e}")
         finally:
@@ -202,10 +241,11 @@ class PokerEngineServer:
         action_type = action_message.message["action"]
 
         action_tuple = (get_poker_action_enum_from_index(action_type), action_message.message["amount"])
-
+        print(f"Processing action from player {player_id}: {action_tuple}")
         try:
             self.game.update_game(player_id, action_tuple)
         except Exception as e:
+            self.send_text_message(player_id, f"Invalid action: {e}")
             print(f"Error processing action from player {player_id}: {e}")
             return False
 
@@ -221,6 +261,12 @@ class PokerEngineServer:
 
     def generate_player_id(self):
         return uuid.uuid4().int & (1<<32)-1
+    
+    def append_to_file(path, score):
+        with open(path, "a") as file:
+            file.write(f"{score}\n")
+        
+        file.close()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Poker Engine Server')
@@ -228,7 +274,7 @@ if __name__ == "__main__":
     parser.add_argument('--port', type=int, default=5000, help='Port number')
     parser.add_argument('--players', type=int, default=2, help='Number of players')
     parser.add_argument('--timeout', type=int, default=30, help='Turn timeout in seconds')
-    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument('--debug', default=True, action='store_true', help='Enable debug mode')
     args = parser.parse_args()
 
     server = PokerEngineServer(args.host, args.port, args.players, args.timeout, args.debug)
