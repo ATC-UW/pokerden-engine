@@ -71,8 +71,8 @@ class RoundState:
                 self._update_waiting_for_after_raise(player_id)
 
         elif action == PokerAction.RAISE:
-            if amount <= self.raise_amount:
-                raise ValueError("Raise amount must be higher than the current raise")
+            if amount + self.player_bets[player_id] <= self.raise_amount:
+                raise ValueError("Raise amount + current bet must be higher than the current raise")
             self.raise_amount = self.player_bets[player_id] + amount
             self.bettor = player_id
             self.pot += self.raise_amount

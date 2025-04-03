@@ -9,6 +9,7 @@ from poker_type.client import RoundStateClient
 from poker_type.messsage import MessageType
 from poker_type.utils import get_message_type_name
 
+from config import START_MONEY
 
 class Runner:
     """
@@ -29,6 +30,7 @@ class Runner:
         self.current_round: Optional[RoundStateClient] = None
         self.player_id = None
         self.logger = self._setup_logger()
+        self.player_money = START_MONEY
 
     @staticmethod
     def _setup_logger():
@@ -93,12 +95,13 @@ class Runner:
     def _handle_connect(self, message: Any) -> None:
         """Handle connection confirmation message."""
         self.player_id = message
+        self.bot.set_id(self.player_id)
         self.logger.info(f"Connected with player ID: {self.player_id}")
 
     def _handle_game_start(self, _: Any) -> None:
         """Handle game start message."""
         if self.bot:
-            self.bot.on_start()
+            self.bot.on_start(self.player_money)
         self.logger.info("Game started")
 
     def _handle_game_state(self, message: dict) -> None:
@@ -120,7 +123,7 @@ class Runner:
     def _handle_round_start(self, _: Any) -> None:
         """Handle round start message."""
         if self.bot and self.current_round:
-            self.bot.on_round_start(self.current_round)
+            self.bot.on_round_start(self.current_round, self.player_money)
         self.logger.info(f"Round {self.current_round.round_num if self.current_round else 'unknown'} started")
 
     def _handle_request_action(self, _: Any) -> None:
@@ -129,14 +132,21 @@ class Runner:
             self.logger.error("Can't get action: bot or round state not initialized")
             return
             
-        action, amount = self.bot.get_action(self.current_round)
+        action, amount = self.bot.get_action(self.current_round, self.player_money)
         self.logger.info(f"Bot action: {action.name}, amount: {amount}")
+        ok = self._validate_action(action.value, amount)
+        if not ok:
+            self.logger.error("Invalid action or amount")
+            # punish the bot for invalid action
+            self.send_action_to_server(self.player_id, 1, 0)  # fold
+            return
         self.send_action_to_server(self.player_id, action.value, amount)
+        self.player_money -= amount
 
     def _handle_round_end(self, _: Any) -> None:
         """Handle round end message."""
         if self.bot and self.current_round:
-            self.bot.on_end_round(self.current_round)
+            self.bot.on_end_round(self.current_round, self.player_money)
         self.logger.info("Round ended")
 
     def _handle_game_end(self, message: Any) -> None:
@@ -165,6 +175,67 @@ class Runner:
                 self.logger.error(f"Error decoding message: {line}")
             except Exception as e:
                 self.logger.exception(f"Error processing message: {e}")
+
+    def _validate_action(self, action: int, amount: int) -> bool:
+
+        """
+        Validate the action and amount before sending to server.
+        
+        Args:
+            action: Action code (from MessageType enum)
+            amount: Bet amount
+
+        """
+
+        if amount < 0:
+            self.logger.error("Invalid amount: cannot be negative")
+            return False
+        
+        if amount > self.player_money:
+            self.logger.error("Invalid amount: exceeds player money")
+
+        # fold
+        if action == 1:
+            return True
+        
+        # check
+        if action == 2:
+            if self.current_round and self.current_round.current_bet == 0:
+                return True
+            else:
+                self.logger.error("Invalid check action: current bet is not zero")
+                return False
+
+        # call    
+        if action == 3:
+            needed_call = self.current_round.current_bet - self.current_round.player_bets[str(self.player_id)]
+            if self.current_round and amount == needed_call and needed_call > 0:
+                return True
+            else:
+                self.logger.error("Invalid call action: amount does not match current bet")
+                return False
+            
+        # raise
+        if action == 4:
+            actual_raise = amount + self.current_round.player_bets[str(self.player_id)]
+
+            print("actual raise", actual_raise)
+
+            if self.current_round and actual_raise >= self.current_round.current_bet:
+                return True
+            else:
+                self.logger.error("Invalid raise action: amount out of range")
+                return False
+            
+        # all in
+        if action == 5:
+            if self.current_round and amount == self.player_money:
+                return True
+            else:
+                self.logger.error("Invalid all-in action: amount does not match player money")
+                return False
+            
+        
 
     def send_action_to_server(self, player_id: str, action: int, amount: int) -> None:
         """

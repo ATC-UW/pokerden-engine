@@ -6,25 +6,30 @@ from poker_type.game import PokerAction
 class Player(ABC):
     def __init__(self):
         """ Initializes the player. """
+        self.id = None
         pass
 
+    def set_id(self, player_id: int):
+        """ Sets the player ID. """
+        self.id = player_id
+
     @abstractmethod
-    def on_start(self):
+    def on_start(self, starting_chips: int):
         """ Called when the game starts. """
         pass
 
     @abstractmethod
-    def on_round_start(self, round_state: RoundStateClient):
+    def on_round_start(self, round_state: RoundStateClient, remaining_chips: int):
         """ Called at the start of each round. """
         pass
 
     @abstractmethod
-    def get_action(self, round_state: RoundStateClient):
+    def get_action(self, round_state: RoundStateClient, remaining_chips: int):
         """ Called when it is the player's turn to act. """
         pass
 
     @abstractmethod
-    def on_end_round(self, round_state: RoundStateClient):
+    def on_end_round(self, round_state: RoundStateClient, remaining_chips: int):
         """ Called at the end of each round. """
         pass
 
@@ -37,13 +42,14 @@ class SimplePlayer(Player):
     def __init__(self):
         super().__init__()
 
-    def on_start(self):
+    def on_start(self, starting_chips: int):
         print("Player called on game start")
 
-    def on_round_start(self, round_state: RoundStateClient):
+    def on_round_start(self, round_state: RoundStateClient, remaining_chips: int):
         print("Player called on round start")
 
-    def get_action(self, round_state: RoundStateClient):
+    def get_action(self, round_state: RoundStateClient, remaining_chips: int):
+        """ Returns the action for the player. """
         print("Player called get action")
 
         raised = False
@@ -58,10 +64,11 @@ class SimplePlayer(Player):
         if round_state.current_bet == 0:
             return PokerAction.CHECK, 0
         
+        amount_to_call = round_state.current_bet - round_state.player_bets[str(self.id)]
+        return PokerAction.CALL, amount_to_call
 
-        return PokerAction.CALL, 0
-
-    def on_end_round(self, round_state: RoundStateClient):
+    def on_end_round(self, round_state: RoundStateClient, remaining_chips: int):
+        """ Called at the end of the round. """
         print("Player called on end round")
 
     def on_end_game(self, round_state: RoundStateClient, score: float):
