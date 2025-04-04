@@ -8,7 +8,7 @@ class Message:
 
     def __str__(self):
         return self.message
-    
+
     def serialize(self):
         return "Not implemented"
 
@@ -22,10 +22,10 @@ class CONNECT(Message):
 
     def serialize(self):
         return json.dumps({"type": self.type.value, "message": self.message})
-    
+
     def __str__(self):
         return self.serialize()
-    
+
     @staticmethod
     def parse(message_str):
         data = json.loads(message_str)

@@ -89,3 +89,7 @@ def get_round_name_from_enum(round: PokerRound) -> str:
     if round not in ROUND_NAMES_MAPING:
         raise ValueError(f"Invalid round enum: {round}")
     return ROUND_NAMES_MAPING[round]
+
+
+def test_afaf():
+    pass
