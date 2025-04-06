@@ -78,7 +78,6 @@ class Game:
         action_type, amount = action
         # All in propagation
         if self.round_index > 1:
-            # print(self.player_history[self.round_index - 1]["player_actions"])
             if self.player_history[self.round_index - 1]["player_actions"][player_id] == PokerAction.ALL_IN:
                 if self.debug:
                     print(f"Player {player_id} is all in from previous round")
