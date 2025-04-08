@@ -26,6 +26,28 @@ class Game:
         self.current_round: RoundState = None
         self.score = {}
 
+    def assign_player_ids_hand(self, player_id: int, hand: List[str]):
+        """
+        Assign a hand to a player. This is only used for testing purposes.
+        In a real game, the hands are dealt by the deck.
+        """
+        if not self.debug:
+            return
+
+        if player_id not in self.players:
+            raise ValueError("Player ID not found in the game")
+        self.hands[player_id] = hand
+
+    def assign_board(self, board: List[str]):
+        """
+        Assign a board to the game. This is only used for testing purposes.
+        In a real game, the board is dealt by the deck.
+        """
+        if not self.debug:
+            return
+
+        self.board = board
+
     def add_player(self, player_id: int):
         self.players.append(player_id)
         self.active_players.append(player_id)
