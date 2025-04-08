@@ -91,7 +91,7 @@ class Game:
             self.active_players.remove(player_id)
 
     def start_round(self):
-        if self.is_game_over():
+        if not self.is_next_round():
             self.end_game()
             return
 
