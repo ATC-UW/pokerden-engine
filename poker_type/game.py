@@ -8,8 +8,7 @@ class PokerAction(Enum):
     ALL_IN = 5
 
 class PokerRound(Enum):
-    UNSTARTED = 0
-    PREFLOP = 1
-    FLOP = 2
-    TURN = 3
-    RIVER = 4
+    PREFLOP = 0
+    FLOP = 1
+    TURN = 2
+    RIVER = 3

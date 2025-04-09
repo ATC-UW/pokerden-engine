@@ -8,7 +8,7 @@ from poker_type.game import PokerRound, PokerAction
 from poker_type.messsage import GameStateMessage
 from poker_type.utils import get_poker_action_name_from_enum, get_round_name
 
-GAME_ROUNDS = [PokerRound.UNSTARTED, PokerRound.PREFLOP, PokerRound.FLOP, PokerRound.TURN, PokerRound.RIVER]
+GAME_ROUNDS = [PokerRound.PREFLOP, PokerRound.FLOP, PokerRound.TURN, PokerRound.RIVER]
 
 class Game:
     def __init__(self, debug: bool = False):
@@ -121,9 +121,7 @@ class Game:
         # Create new round state
         self.current_round = RoundState(self.active_players)
 
-        if(GAME_ROUNDS[self.round_index] == PokerRound.PREFLOP):
-            pass
-        elif(GAME_ROUNDS[self.round_index] == PokerRound.FLOP):
+        if(GAME_ROUNDS[self.round_index] == PokerRound.FLOP):
             # Burn one card
             self.deck.deal(1)
             # Deal the flop
@@ -161,7 +159,7 @@ class Game:
         if self.player_history[PokerRound.RIVER.value]["player_actions"][winner] == PokerAction.ALL_IN:
             # TODO: split pot
             win_amount = 0
-            for r in range(1, 5):
+            for r in range(1, 4):
                 win_amount += self.player_history[r]["player_bets"][winner]
 
             if(win_amount * 2 > self.total_pot):
@@ -179,7 +177,7 @@ class Game:
                 print(f"Player {winner} wins with hand {self.hands[winner]}")
 
         for player in self.players:
-            for r in range(1, 5):
+            for r in range(1, 4):
                 if player in self.player_history[r]["player_bets"]:
                     self.score[player] -= self.player_history[r]["player_bets"][player]
 

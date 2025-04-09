@@ -1,15 +1,13 @@
 from poker_type.game import PokerAction, PokerRound
 
 ROUND_NAMES_MAPPING_FROM_INDEX = {
-    0: "Unstarted",
-    1: "Preflop",
-    2: "Flop",
-    3: "Turn",
-    4: "River"
+    0: "Preflop",
+    1: "Flop",
+    2: "Turn",
+    3: "River"
 }
 
 ROUND_NAMES_MAPING = {
-    PokerRound.UNSTARTED: "Unstarted",
     PokerRound.PREFLOP: "Preflop",
     PokerRound.FLOP: "Flop",
     PokerRound.TURN: "Turn",
