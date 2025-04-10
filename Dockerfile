@@ -7,6 +7,8 @@ WORKDIR /app
 # Copy only the requirements file first to leverage Docker's caching
 COPY requirements.txt /app
 
+RUN mkdir -p /app/output
+
 # Install common dependencies and Python dependencies in one step
 RUN pip install --no-cache-dir -r requirements.txt
 

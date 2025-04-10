@@ -2,6 +2,7 @@ import socket
 import threading
 from typing import Dict, Tuple
 import uuid
+from config import OUTPUT_DIR_CONTAINER
 from game.game import Game
 
 from message import (
@@ -49,6 +50,8 @@ class PokerEngineServer:
             self.server_socket.listen(self.required_players)
             print(f"Server started on {self.host}:{self.port}")
             print(f"Waiting for {self.required_players} players to join...")
+            self.remove_file_content(OUTPUT_DIR_CONTAINER)
+            self.append_to_file(OUTPUT_DIR_CONTAINER, "RUNNING")
             self.accept_connections()
         except Exception as e:
             print(f"Error starting server: {e}")
@@ -114,6 +117,8 @@ class PokerEngineServer:
                     # TODO: Add a reveal cards message
                     self.game_in_progress = False
                     self.stop_server()
+                    self.remove_file_content(OUTPUT_DIR_CONTAINER)
+                    self.append_to_file(OUTPUT_DIR_CONTAINER, "DONE " + str(score))
                     break
 
                 self.broadcast_text("New round starting!")
@@ -261,8 +266,14 @@ class PokerEngineServer:
     def generate_player_id(self):
         return uuid.uuid4().int & (1<<32)-1
     
-    def append_to_file(path, score):
+    def append_to_file(self, path, score):
         with open(path, "a") as file:
             file.write(f"{score}\n")
+        
+        file.close()
+
+    def remove_file_content(self, path):
+        with open(path, "w") as file:
+            file.write("")
         
         file.close()
