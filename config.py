@@ -1,2 +1,2 @@
 NUM_ROUNDS = 6
-OUTPUT_DIR_CONTAINER = "game_result.log"
+OUTPUT_DIR_CONTAINER = "/app/output/game_result.log"
