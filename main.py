@@ -1,6 +1,7 @@
 
 import argparse
 from server import PokerEngineServer
+from config import NUM_ROUNDS
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Poker Engine Server')
@@ -9,11 +10,33 @@ if __name__ == "__main__":
     parser.add_argument('--players', type=int, default=2, help='Number of players')
     parser.add_argument('--timeout', type=int, default=30, help='Turn timeout in seconds')
     parser.add_argument('--debug', default=False, action='store_true', help='Enable debug mode')
+    parser.add_argument('--sim', default=False, action='store_true', help='Enable simulation mode')
+    parser.add_argument('--sim-rounds', type=int, default=NUM_ROUNDS, help='Number of rounds to simulate')
     args = parser.parse_args()
 
-    server = PokerEngineServer(args.host, args.port, args.players, args.timeout, args.debug)
-    try:
-        server.start_server()
-    except KeyboardInterrupt:
-        print("Shutting down server...")
-        server.stop_server()
+
+    # simulation mode
+    if args.sim:
+        try:
+            count = 0
+            while count < args.sim_rounds:
+                print(f"Simulating round {count + 1}/{args.sim_rounds}")
+                # Here you would implement the logic to simulate a round of poker.
+                # This is a placeholder for the actual simulation logic.
+                # For example, you might want to call a method in PokerEngineServer to run a simulation.
+                # simulation.run_simulation()
+                server = PokerEngineServer(args.host, args.port, args.players, args.timeout, args.debug, args.sim)
+                server.start_server()
+                count += 1
+        except KeyboardInterrupt:
+            print("Shutting down simulation...")
+            server.stop_server()
+     
+    # normal mode
+    else:
+        server = PokerEngineServer(args.host, args.port, args.players, args.timeout, args.debug, args.sim)
+        try:
+            server.start_server()
+        except KeyboardInterrupt:
+            print("Shutting down server...")
+            server.stop_server()

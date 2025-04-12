@@ -2,7 +2,7 @@ import socket
 import threading
 from typing import Dict, Tuple
 import uuid
-from config import OUTPUT_DIR_CONTAINER
+from config import OUTPUT_GAME_RESULT_FILE
 from game.game import Game
 
 from message import (
@@ -25,12 +25,13 @@ from poker_type.utils import (
 )
 
 class PokerEngineServer:
-    def __init__(self, host='localhost', port=5000, num_players=2, turn_timeout=30, debug=False):
+    def __init__(self, host='localhost', port=5000, num_players=2, turn_timeout=30, debug=False, sim=False):
         self.host = host
         self.port = port
         self.required_players = num_players
         self.turn_timeout = turn_timeout
         self.debug = debug
+        self.sim = sim
         
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -50,8 +51,12 @@ class PokerEngineServer:
             self.server_socket.listen(self.required_players)
             print(f"Server started on {self.host}:{self.port}")
             print(f"Waiting for {self.required_players} players to join...")
-            self.remove_file_content(OUTPUT_DIR_CONTAINER)
-            self.append_to_file(OUTPUT_DIR_CONTAINER, "RUNNING")
+            if not self.sim:
+                self.remove_file_content(OUTPUT_GAME_RESULT_FILE)
+                self.append_to_file(OUTPUT_GAME_RESULT_FILE, "RUNNING")
+            else:
+                # TODO
+                pass
             self.accept_connections()
         except Exception as e:
             print(f"Error starting server: {e}")
@@ -117,8 +122,12 @@ class PokerEngineServer:
                     # TODO: Add a reveal cards message
                     self.game_in_progress = False
                     self.stop_server()
-                    self.remove_file_content(OUTPUT_DIR_CONTAINER)
-                    self.append_to_file(OUTPUT_DIR_CONTAINER, "DONE " + str(score))
+
+                    if not self.sim:
+                        self.remove_file_content(OUTPUT_GAME_RESULT_FILE)
+                        self.append_to_file(OUTPUT_GAME_RESULT_FILE, "DONE " + str(score))
+                    else:
+                        pass
                     break
 
                 self.broadcast_text("New round starting!")
