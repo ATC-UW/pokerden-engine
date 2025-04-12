@@ -1,7 +1,7 @@
 
 import argparse
 from server import PokerEngineServer
-from config import NUM_ROUNDS
+from config import NUM_ROUNDS, OUTPUT_FILE_SIMULATION
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Poker Engine Server')
@@ -19,6 +19,10 @@ if __name__ == "__main__":
     if args.sim:
         try:
             count = 0
+
+            with open(OUTPUT_FILE_SIMULATION, 'w') as sim_file:
+                sim_file.write("RUNNING\n")
+
             while count < args.sim_rounds:
                 print(f"Simulating round {count + 1}/{args.sim_rounds}")
                 # Here you would implement the logic to simulate a round of poker.
@@ -28,6 +32,9 @@ if __name__ == "__main__":
                 server = PokerEngineServer(args.host, args.port, args.players, args.timeout, args.debug, args.sim)
                 server.start_server()
                 count += 1
+
+            with open(OUTPUT_FILE_SIMULATION, 'w') as sim_file:
+                sim_file.write("DONE\n")
         except KeyboardInterrupt:
             print("Shutting down simulation...")
             server.stop_server()
