@@ -19,7 +19,7 @@ class Game:
         self.deck = PokerDeck()
         self.hands: Dict[int, List[str]] = {}
         self.board: List[str] = []
-        self.round_index = 0
+        self.round_index = -1
         self.total_pot = 0
         self.historical_pots: List[int] = []
         self.player_history: Dict = {}
