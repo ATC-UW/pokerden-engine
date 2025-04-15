@@ -62,7 +62,7 @@ class Game:
         return can_continue and self.current_round.is_round_complete()
     
     def is_game_over(self):
-        return self.round_index >= len(GAME_ROUNDS) - 1
+        return not self.is_next_round()
     
     def get_current_round(self):
         return GAME_ROUNDS[self.round_index]
