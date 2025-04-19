@@ -1,5 +1,4 @@
 import unittest
-from xml.dom import InvalidStateErr
 
 from game.game import Game
 from poker_type.game import PokerAction, PokerRound
@@ -244,7 +243,7 @@ class TestStartRound(unittest.TestCase):
         game = Game(debug=True)
         game.add_player(1)
         game.start_game()
-        self.assertRaises(InvalidStateErr, game.start_round())
+        self.assertRaises(RuntimeError, game.start_round())
 
     def test_start_flop(self):
         game = Game(debug=True)
