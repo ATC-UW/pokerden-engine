@@ -243,7 +243,7 @@ class TestStartRound(unittest.TestCase):
         game = Game(debug=True)
         game.add_player(1)
         game.start_game()
-        self.assertRaises(RuntimeError, game.start_round())
+        self.assertRaises(RuntimeError, lambda: game.start_round())
 
     def test_start_flop(self):
         game = Game(debug=True)
