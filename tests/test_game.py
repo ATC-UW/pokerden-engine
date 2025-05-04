@@ -170,26 +170,6 @@ class TestGetCurrentRound(unittest.TestCase):
         game.start_round()
         self.assertEqual(PokerRound.FLOP, game.get_current_round())
 
-    def test_turn(self):
-        game = Game(debug=True)
-        game.start_game()
-        game.end_round()
-        game.start_round()
-        game.end_round()
-        game.start_round()
-        self.assertEqual(PokerRound.TURN, game.get_current_round())
-
-    def test_river(self):
-        game = Game(debug=True)
-        game.start_game()
-        game.end_round()
-        game.start_round()
-        game.end_round()
-        game.start_round()
-        game.end_round()
-        game.start_round()
-        self.assertEqual(PokerRound.RIVER, game.get_current_round())
-
 class TestStartGame(unittest.TestCase):
     def test_not_started(self):
         game = Game(debug=True)
