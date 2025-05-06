@@ -160,15 +160,45 @@ class TestIsGameOver(unittest.TestCase):
 class TestGetCurrentRound(unittest.TestCase):
     def test_preflop(self):
         game = Game(debug=True)
+        game.add_player(1)
         game.start_game()
         self.assertEqual(PokerRound.PREFLOP, game.get_current_round())
 
     def test_flop(self):
         game = Game(debug=True)
+        game.add_player(1)
         game.start_game()
+        game.update_game(1, (PokerAction.CHECK, 0))
         game.end_round()
         game.start_round()
         self.assertEqual(PokerRound.FLOP, game.get_current_round())
+
+    def test_turn(self):
+        game = Game(debug=True)
+        game.add_player(1)
+        game.start_game()
+        game.update_game(1, (PokerAction.CHECK, 0))
+        game.end_round()
+        game.start_round()
+        game.update_game(1, (PokerAction.CHECK, 0))
+        game.end_round()
+        game.start_round()
+        self.assertEqual(PokerRound.TURN, game.get_current_round())
+
+    def test_river(self):
+        game = Game(debug=True)
+        game.add_player(1)
+        game.start_game()
+        game.update_game(1, (PokerAction.CHECK, 0))
+        game.end_round()
+        game.start_round()
+        game.update_game(1, (PokerAction.CHECK, 0))
+        game.end_round()
+        game.start_round()
+        game.update_game(1, (PokerAction.CHECK, 0))
+        game.end_round()
+        game.start_round()
+        self.assertEqual(PokerRound.RIVER, game.get_current_round())
 
 class TestStartGame(unittest.TestCase):
     def test_not_started(self):
@@ -176,13 +206,6 @@ class TestStartGame(unittest.TestCase):
         game.add_player(1)
         self.assertEqual(-1, game.round_index)
         self.assertEqual(None, game.current_round)
-
-    def test_start_no_player(self):
-        # Not sure if we could start game without player (assume that we can)
-        game = Game(debug=True)
-        game.start_game()
-        self.assertEqual(0, game.round_index)
-        self.assertEqual(PokerRound.PREFLOP, game.get_current_round())
 
     def test_start_with_one_player(self):
         game = Game(debug=True)
@@ -251,6 +274,7 @@ class TestStartRound(unittest.TestCase):
 
     def test_start_turn(self):
         game = Game(debug=True)
+        game.add_player(1)
         game.start_game()
         game.update_game(1, (PokerAction.CHECK, 0))
         game.end_round()
@@ -263,6 +287,7 @@ class TestStartRound(unittest.TestCase):
 
     def test_start_river(self):
         game = Game(debug=True)
+        game.add_player(1)
         game.start_game()
         game.update_game(1, (PokerAction.CHECK, 0))
         game.end_round()
