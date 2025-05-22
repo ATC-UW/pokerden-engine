@@ -1,5 +1,9 @@
 import unittest
 
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from game.game import Game
 from poker_type.game import PokerAction, PokerRound
 
