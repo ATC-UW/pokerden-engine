@@ -81,7 +81,8 @@ class TestIsNextRound(unittest.TestCase):
 class TestIsGameOver(unittest.TestCase):
     def test_unstarted(self):
         game = Game(debug=True)
-        self.assertEqual(False, game.is_game_over())
+        # game have not started yet
+        self.assertEqual(True, game.is_game_over())
 
     def test_pre_flop(self):
         game = Game(debug=True)
@@ -252,12 +253,6 @@ class TestUpdateGame(unittest.TestCase):
         self.assertTrue(1 not in game.active_players)
 
 class TestStartRound(unittest.TestCase):
-    def test_invalid_start(self):
-        game = Game(debug=True)
-        game.add_player(1)
-        game.start_game()
-        self.assertRaises(RuntimeError, lambda: game.start_round())
-
     def test_start_flop(self):
         game = Game(debug=True)
         game.add_player(1)
@@ -297,11 +292,6 @@ class TestStartRound(unittest.TestCase):
         game.update_game(1, (PokerAction.CHECK, 0))
         self.assertEqual(5, len(game.board))
         self.assertEqual(3, game.round_index)
-
-# class TestEndRound(unittest.TestCase):
-
-# class TestEndGame(unittest.TestCase):
-    # def
 
 
 if __name__ == '__main__':

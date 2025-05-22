@@ -25,6 +25,7 @@ class Game:
         self.player_history: Dict = {}
         self.current_round: RoundState = None
         self.score = {}
+        self.is_running = False
 
     def assign_player_ids_hand(self, player_id: int, hand: List[str]):
         """
@@ -58,11 +59,23 @@ class Game:
             print(s)
 
     def is_next_round(self):
+        if self.active_players == []:
+            print("No active players")
+            return False
         can_continue = self.round_index < len(GAME_ROUNDS) - 1
         return can_continue and self.current_round.is_round_complete()
     
     def is_game_over(self):
-        return not self.is_next_round()
+        if self.active_players == [] and self.players != []:
+            if self.is_running:
+                self.is_running = False
+            return not self.is_running
+
+        if self.round_index >= len(GAME_ROUNDS):
+            print("This can't happen")
+            return False
+
+        return not self.is_running
     
     def get_current_round(self):
         return GAME_ROUNDS[self.round_index]
@@ -77,6 +90,7 @@ class Game:
         self.deck = PokerDeck()
         self.deck.shuffle()
         self.round_index = 0
+        self.is_running = True
 
         # Deal two cards to each player
         for player in self.active_players:
@@ -183,6 +197,8 @@ class Game:
 
         if self.debug:
             print(f"Scores: {self.score}")
+
+        self.is_running = False
 
     def get_final_score(self):
         return self.score
