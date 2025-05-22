@@ -247,14 +247,6 @@ class TestUpdateGame(unittest.TestCase):
         game.update_game(1, (PokerAction.FOLD, 0))
         self.assertTrue(1 not in game.active_players)
 
-    # def test_player_allin_twice(self):
-    #     game = Game(debug=True)
-    #     game.add_player(1)
-    #     game.start_game()
-    #     game.update_game(1, (PokerAction.ALL_IN, 100))
-    #     game.end_round()
-    #     game.start_round(1, (PokerAction))
-
 class TestStartRound(unittest.TestCase):
     def test_invalid_start(self):
         game = Game(debug=True)
