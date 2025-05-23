@@ -97,9 +97,9 @@ class PokerEngineServer:
         self.game.start_game()
         # broadcast message with hands to each player
         for (player_id, conn) in self.player_connections.items():
-            print(f"Player {player_id} hands: {self.game.get_player_hands(player_id)}")
+            logger.debug(f"Player {player_id} hands: {self.game.get_player_hands(player_id)}")
             start_message = START("Game initiated!", self.game.get_player_hands(player_id))
-            print(f"Sending start message to player {player_id}: {str(start_message)}")  
+            logger.debug(f"Sending start message to player {player_id}: {str(start_message)}")  
             self.send_message(player_id, str(start_message))
         # start_message = START("Game initiated!")
         # self.broadcast_message(start_message)
