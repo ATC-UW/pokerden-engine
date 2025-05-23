@@ -1,4 +1,5 @@
 import json
+from typing import List
 from poker_type.messsage import GameStateMessage, MessageType, RequestPlayerActionMessage
 from eval7 import Card
 
@@ -53,21 +54,25 @@ class END(Message):
         return Message(data["message"])
     
 class START(Message):
-    def __init__(self, message):
+    def __init__(self, message: str, hands: List[str]):
         self.message = message
         self.type = MessageType.GAME_START
+        self.hands = hands
 
     def serialize(self):
-        return json.dumps({"type": self.type.value, "message": self.message})
+        return json.dumps({"type": self.type.value, "message": {
+            "message": self.message,
+            "hands": self.hands
+        }})
 
-    def __str__(self, message):
+    def __str__(self):
         return self.serialize()
 
     @staticmethod
     def parse(message_str):
         data = json.loads(message_str)
         if data["type"] == MessageType.GAME_START.value:
-            return START(data["message"])
+            return START(data["message"], data["hands"])
         return Message(data["message"])
     
 class ROUND_END(Message):
