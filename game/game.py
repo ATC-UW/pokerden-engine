@@ -17,7 +17,7 @@ class Game:
         self.players: List[int] = []
         self.active_players: List[int] = []
         self.deck = PokerDeck()
-        self.hands: Dict[int, List[str]] = {}
+        self.hands: Dict[int, List[eval7.Card]] = {}
         self.board: List[str] = []
         self.round_index = -1
         self.total_pot = 0
@@ -83,6 +83,9 @@ class Game:
     def get_current_waiting_for(self):
         return self.current_round.get_current_player()
     
+    def get_player_hands(self, player_id: int) -> List[str]:
+        return [str(card) for card in self.hands[player_id]]
+
     def is_current_round_complete(self):
         return self.current_round.is_round_complete()
 
