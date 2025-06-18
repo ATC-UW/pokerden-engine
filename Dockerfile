@@ -12,6 +12,9 @@ RUN mkdir -p /app/output
 # Install common dependencies and Python dependencies in one step
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Create .dockerignore file to exclude tests and test_scripts directories
+RUN echo "tests/\ntest_scripts/" > .dockerignore
+
 # Copy the rest of the application files
 COPY . /app/
 
