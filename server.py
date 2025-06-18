@@ -30,18 +30,19 @@ from poker_type.utils import (
 logger = logging.getLogger(__name__)
 
 class PokerEngineServer:
-    def __init__(self, host='localhost', port=5000, num_players=2, turn_timeout=30, debug=False, sim=False):
+    def __init__(self, host='localhost', port=5000, num_players=2, turn_timeout=30, debug=False, sim=False, blind_amount=10):
         self.host = host
         self.port = port
         self.required_players = num_players
         self.turn_timeout = turn_timeout
         self.debug = debug
         self.sim = sim
+        self.blind_amount = blind_amount
         
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        self.game = Game(self.debug)
+        self.game = Game(self.debug, self.blind_amount)
         self.player_connections: Dict[int, socket.socket] = {}
         self.player_addresses: Dict[int, Tuple[str, int]] = {}
         self.game_in_progress = False
@@ -50,6 +51,9 @@ class PokerEngineServer:
         self.running = True
         self.current_player_idx = 0
         self.game_count = 0
+        
+        # Dealer button management for continuous games
+        self.dealer_button_position = 0
 
     def start_server(self):
         try:
@@ -117,7 +121,10 @@ class PokerEngineServer:
         """Reset the game state for a new game while keeping the same players"""
         with self.game_lock:
             # Create a new game instance
-            self.game = Game(self.debug)
+            self.game = Game(self.debug, self.blind_amount)
+            
+            # Set the current dealer button position
+            self.game.set_dealer_button_position(self.dealer_button_position)
             
             # Add all existing players to the new game
             for player_id in self.player_connections.keys():
@@ -131,6 +138,7 @@ class PokerEngineServer:
         while self.running and len(self.player_connections) >= self.required_players:
             self.game_count += 1
             print(f"\n=== Starting Game #{self.game_count} ===")
+            print(f"Dealer button position: {self.dealer_button_position}")
             
             # Check if we've reached the simulation rounds limit
             if hasattr(self, 'simulation_rounds') and self.game_count > self.simulation_rounds:
@@ -142,6 +150,9 @@ class PokerEngineServer:
             
             # Run a single game
             self.run_single_game()
+            
+            # Rotate dealer button after each game for continuous mode
+            self.rotate_dealer_button()
             
             # Check if we should continue
             if len(self.player_connections) < self.required_players:
@@ -166,7 +177,18 @@ class PokerEngineServer:
         # broadcast message with hands to each player
         for (player_id, conn) in self.player_connections.items():
             logger.debug(f"Player {player_id} hands: {self.game.get_player_hands(player_id)}")
-            start_message = START("Game initiated!", self.game.get_player_hands(player_id))
+            
+            # Determine if this player is small blind or big blind
+            is_small_blind = player_id == self.game.get_small_blind_player()
+            is_big_blind = player_id == self.game.get_big_blind_player()
+            
+            start_message = START(
+                "Game initiated!", 
+                self.game.get_player_hands(player_id),
+                self.blind_amount,
+                is_small_blind,
+                is_big_blind
+            )
             logger.debug(f"Sending start message to player {player_id}: {str(start_message)}")  
             self.send_message(player_id, str(start_message))
         
@@ -212,17 +234,38 @@ class PokerEngineServer:
                         break
 
                     print("Current player in game: ", waiting_for)
-                    start_player_idx = self.current_player_idx % length
+                    
+                    # For the first round, prioritize blind players
+                    if self.game.round_index == 0:
+                        # Sort queue to have small blind first, then big blind
+                        small_blind = self.game.get_small_blind_player()
+                        big_blind = self.game.get_big_blind_player()
+                        
+                        if small_blind in waiting_for and big_blind in waiting_for:
+                            # Arrange so small blind goes first, then big blind
+                            queue = []
+                            if small_blind in waiting_for:
+                                queue.append(small_blind)
+                            if big_blind in waiting_for:
+                                queue.append(big_blind)
+                            # Add other players
+                            for player in waiting_for:
+                                if player not in [small_blind, big_blind]:
+                                    queue.append(player)
+                    
+                    start_player_idx = 0
+                    length = len(queue)
 
                     idx = start_player_idx
                     while idx < start_player_idx + length:
                         print(f"Current player index: {idx}, Player ID: {queue[idx % length]}")
                         player_id = queue[idx % length]
-                        conn = self.player_connections[player_id]
-
+                        
                         if player_id not in self.player_connections:
                             idx += 1
                             continue  # Skip removed players
+                            
+                        conn = self.player_connections[player_id]
 
                         request_action_message = REQUEST_PLAYER_MESSAGE(player_id, 0)
                         self.send_message(player_id, str(request_action_message))
@@ -353,3 +396,9 @@ class PokerEngineServer:
             file.write("")
         
         file.close()
+
+    def rotate_dealer_button(self):
+        """Rotate the dealer button to the next player"""
+        if len(self.player_connections) > 1:
+            self.dealer_button_position = (self.dealer_button_position + 1) % len(self.player_connections)
+            print(f"Dealer button rotated to position {self.dealer_button_position}")
