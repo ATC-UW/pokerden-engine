@@ -1,9 +1,12 @@
 import socket
 import threading
+import time
 from typing import Dict, Tuple
 import uuid
-from config import OUTPUT_GAME_RESULT_FILE
+import logging
+from config import OUTPUT_GAME_RESULT_FILE, OUTPUT_FILE_SIMULATION, SERVER_SIM_WAIT_BETWEEN_GAMES
 from game.game import Game
+import os
 
 from message import (
     CONNECT,
@@ -23,6 +26,8 @@ from poker_type.utils import (
     get_round_name, 
     get_round_name_from_enum
 )
+
+logger = logging.getLogger(__name__)
 
 class PokerEngineServer:
     def __init__(self, host='localhost', port=5000, num_players=2, turn_timeout=30, debug=False, sim=False):
@@ -44,6 +49,7 @@ class PokerEngineServer:
         self.game_lock = threading.Lock()
         self.running = True
         self.current_player_idx = 0
+        self.game_count = 0
 
     def start_server(self):
         try:
@@ -54,9 +60,6 @@ class PokerEngineServer:
             if not self.sim:
                 self.remove_file_content(OUTPUT_GAME_RESULT_FILE)
                 self.append_to_file(OUTPUT_GAME_RESULT_FILE, "RUNNING")
-            else:
-                # TODO
-                pass
             self.accept_connections()
         except Exception as e:
             print(f"Error starting server: {e}")
@@ -67,7 +70,29 @@ class PokerEngineServer:
         self.server_socket.close()
         for conn in self.player_connections.values():
             conn.close()
+        
+        # If this was a simulation, replace RUNNING with DONE
+        if self.sim:
+            self.replace_running_with_done()
+        
         print("Server stopped.")
+
+    def replace_running_with_done(self):
+        """Replace RUNNING with DONE in the simulation output file"""
+        try:
+            if os.path.exists(OUTPUT_FILE_SIMULATION):
+                with open(OUTPUT_FILE_SIMULATION, 'r') as file:
+                    content = file.read()
+                
+                # Replace RUNNING with DONE
+                content = content.replace("RUNNING", "DONE")
+                
+                with open(OUTPUT_FILE_SIMULATION, 'w') as file:
+                    file.write(content)
+                
+                print("Simulation status updated to DONE")
+        except Exception as e:
+            print(f"Error updating simulation status: {e}")
 
     def accept_connections(self):
         while self.running and len(self.player_connections) < self.required_players:
@@ -86,13 +111,56 @@ class PokerEngineServer:
                 break
 
         if len(self.player_connections) == self.required_players:
-            self.run_game()
+            self.run_continuous_games()
 
-    def run_game(self):
+    def reset_game_state(self):
+        """Reset the game state for a new game while keeping the same players"""
+        with self.game_lock:
+            # Create a new game instance
+            self.game = Game(self.debug)
+            
+            # Add all existing players to the new game
+            for player_id in self.player_connections.keys():
+                self.game.add_player(player_id)
+            
+            self.game_in_progress = False
+            self.current_player_idx = 0
+
+    def run_continuous_games(self):
+        """Run multiple games with the same connections"""
+        while self.running and len(self.player_connections) >= self.required_players:
+            self.game_count += 1
+            print(f"\n=== Starting Game #{self.game_count} ===")
+            
+            # Check if we've reached the simulation rounds limit
+            if hasattr(self, 'simulation_rounds') and self.game_count > self.simulation_rounds:
+                print(f"Reached simulation limit of {self.simulation_rounds} games. Stopping.")
+                break
+            
+            # Reset game state for new game
+            self.reset_game_state()
+            
+            # Run a single game
+            self.run_single_game()
+            
+            # Check if we should continue
+            if len(self.player_connections) < self.required_players:
+                print("Not enough players remaining, stopping server.")
+                break
+            
+            # Wait a bit before starting the next game
+            print(f"Waiting {SERVER_SIM_WAIT_BETWEEN_GAMES} seconds before starting next game...")
+            time.sleep(SERVER_SIM_WAIT_BETWEEN_GAMES)
+        
+        print("Game session ended.")
+        self.stop_server()
+
+    def run_single_game(self):
+        """Run a single game"""
         with self.game_lock:
             self.game_in_progress = True
         
-        self.broadcast_text("Game starting!")
+        self.broadcast_text(f"Game #{self.game_count} starting!")
 
         self.game.start_game()
         # broadcast message with hands to each player
@@ -101,8 +169,7 @@ class PokerEngineServer:
             start_message = START("Game initiated!", self.game.get_player_hands(player_id))
             logger.debug(f"Sending start message to player {player_id}: {str(start_message)}")  
             self.send_message(player_id, str(start_message))
-        # start_message = START("Game initiated!")
-        # self.broadcast_message(start_message)
+        
         self.broadcast_game_state()
 
         round_start_message = ROUND_START(get_round_name_from_enum(self.game.get_current_round()))
@@ -114,24 +181,21 @@ class PokerEngineServer:
         for(player_id, conn) in self.player_connections.items():
             connect_message = CONNECT(player_id)
             self.send_message(player_id, str(connect_message))
-            self.send_text_message(player_id, f"Welcome to the game! Your ID is {player_id}")
-
+            self.send_text_message(player_id, f"Welcome to Game #{self.game_count}! Your ID is {player_id}")
 
         try:
             while self.running and self.game_in_progress:
                 if self.game.is_current_round_complete() and self.game.is_game_over():
-                    self.broadcast_text("Game over!")
+                    self.broadcast_text(f"Game #{self.game_count} over!")
                     score = self.game.get_final_score()
                     for player_id in score.keys():
                         end_message = END(score[player_id])
                         self.send_message(player_id, str(end_message))
                     # TODO: Add a reveal cards message
                     self.game_in_progress = False
-                    self.stop_server()
 
                     if not self.sim:
-                        self.remove_file_content(OUTPUT_GAME_RESULT_FILE)
-                        self.append_to_file(OUTPUT_GAME_RESULT_FILE, "DONE " + str(score))
+                        self.append_to_file(OUTPUT_GAME_RESULT_FILE, f"GAME_{self.game_count} " + str(score))
                     else:
                         pass
                     break
@@ -203,18 +267,15 @@ class PokerEngineServer:
 
                 self.broadcast_message(end_round)
 
-
                 # next round
                 self.broadcast_game_state()
                 self.broadcast_message(round_start_message)
                 self.game.start_round()
 
-
         except Exception as e:
             print(f"Error running game: {e}")
         finally:
             self.game_in_progress = False
-            self.stop_server()
 
     def send_message(self, player_id, message):
         """

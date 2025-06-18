@@ -1,4 +1,3 @@
-
 import argparse
 from server import PokerEngineServer
 from config import NUM_ROUNDS, OUTPUT_FILE_SIMULATION
@@ -14,30 +13,23 @@ if __name__ == "__main__":
     parser.add_argument('--sim-rounds', type=int, default=NUM_ROUNDS, help='Number of rounds to simulate')
     args = parser.parse_args()
 
-
     # simulation mode
     if args.sim:
         try:
-            count = 0
-
+            # Write RUNNING when starting simulation
             with open(OUTPUT_FILE_SIMULATION, 'w') as sim_file:
                 sim_file.write("RUNNING\n")
 
-            while count < args.sim_rounds:
-                print(f"Simulating round {count + 1}/{args.sim_rounds}")
-                # Here you would implement the logic to simulate a round of poker.
-                # This is a placeholder for the actual simulation logic.
-                # For example, you might want to call a method in PokerEngineServer to run a simulation.
-                # simulation.run_simulation()
-                server = PokerEngineServer(args.host, args.port, args.players, args.timeout, args.debug, args.sim)
-                server.start_server()
-                count += 1
+            print(f"Starting continuous simulation mode for {args.sim_rounds} games")
+            # Create one server that runs multiple games
+            server = PokerEngineServer(args.host, args.port, args.players, args.timeout, args.debug, args.sim)
+            server.simulation_rounds = args.sim_rounds  # Add this attribute to track rounds
+            server.start_server()
 
-            with open(OUTPUT_FILE_SIMULATION, 'w') as sim_file:
-                sim_file.write("DONE\n")
         except KeyboardInterrupt:
             print("Shutting down simulation...")
-            server.stop_server()
+            if 'server' in locals():
+                server.stop_server()
      
     # normal mode
     else:
