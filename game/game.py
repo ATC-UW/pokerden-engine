@@ -11,7 +11,7 @@ from poker_type.utils import get_poker_action_name_from_enum, get_round_name
 GAME_ROUNDS = [PokerRound.PREFLOP, PokerRound.FLOP, PokerRound.TURN, PokerRound.RIVER]
 
 class Game:
-    def __init__(self, debug: bool = False):
+    def __init__(self, debug: bool = False, blind_amount: int = 10):
         self.debug = debug
         self.nums_round = NUM_ROUNDS
         self.players: List[int] = []
@@ -26,6 +26,63 @@ class Game:
         self.current_round: RoundState = None
         self.score = {}
         self.is_running = False
+        
+        # Blind functionality
+        self.blind_amount = blind_amount
+        self.small_blind_player = None
+        self.big_blind_player = None
+        self.dealer_button_position = 0  # This will be set by the server
+
+    def set_blind_amount(self, amount: int):
+        """Set the blind amount for the game"""
+        self.blind_amount = amount
+
+    def get_blind_amount(self):
+        """Get the current blind amount"""
+        return self.blind_amount
+
+    def get_small_blind_player(self):
+        """Get the current small blind player"""
+        return self.small_blind_player
+
+    def get_big_blind_player(self):
+        """Get the current big blind player"""
+        return self.big_blind_player
+
+    def set_dealer_button_position(self, position: int):
+        """Set the dealer button position (called by server)"""
+        self.dealer_button_position = position
+
+    def assign_blinds(self):
+        """Assign small and big blind players based on dealer button position"""
+        if len(self.active_players) < 2:
+            return
+        
+        if len(self.active_players) == 2:
+            # In heads-up, dealer is small blind
+            self.small_blind_player = self.active_players[self.dealer_button_position % len(self.active_players)]
+            self.big_blind_player = self.active_players[(self.dealer_button_position + 1) % len(self.active_players)]
+        else:
+            # In multi-player, small blind is to the left of dealer, big blind is to the left of small blind
+            self.small_blind_player = self.active_players[(self.dealer_button_position + 1) % len(self.active_players)]
+            self.big_blind_player = self.active_players[(self.dealer_button_position + 2) % len(self.active_players)]
+
+    def post_blinds(self):
+        """Automatically post the blinds for small and big blind players"""
+        if self.small_blind_player and self.big_blind_player:
+            # Post small blind
+            self.current_round.update_player_action(
+                self.small_blind_player, 
+                PokerAction.RAISE, 
+                self.blind_amount // 2
+            )
+            
+            # Post big blind
+            self.current_round.update_player_action(
+                self.big_blind_player, 
+                PokerAction.RAISE, 
+                self.blind_amount
+            )
 
     def assign_player_ids_hand(self, player_id: int, hand: List[str]):
         """
@@ -107,8 +164,13 @@ class Game:
             player: 0 for player in self.active_players
         }
         
+        # Assign blinds for this game
+        self.assign_blinds()
+        
         # Initialize the first round
         self.current_round = RoundState(self.active_players)
+        
+        # Don't post blinds automatically - let clients handle it when they receive action requests
 
     def update_game(self, player_id: int, action: Tuple[PokerAction, int]):
         if player_id not in self.active_players:
@@ -172,36 +234,39 @@ class Game:
             final[player] = eval7.evaluate(players_hand)
 
         winner = max(final, key=final.get)
-        # check if winner all in last round
-        if self.player_history[PokerRound.RIVER.value]["player_actions"][winner] == PokerAction.ALL_IN:
-            # TODO: split pot
-            win_amount = 0
-            for r in range(1, 4):
-                win_amount += self.player_history[r]["player_bets"][winner]
-
-            if(win_amount * 2 > self.total_pot):
-                self.score[winner] = self.total_pot
-            else:
-                remain = self.total_pot - win_amount * 2
-                for player in self.active_players:
-                    self.score[player] += remain / (len(self.active_players))
-                self.score[winner] += win_amount * 2
-            if self.debug:
-                print(f"Player {winner} wins with hand {self.hands[winner]} and all in")
-        else:
-            self.score[winner] = self.total_pot
-            if self.debug:
-                print(f"Player {winner} wins with hand {self.hands[winner]}")
-
+        
+        # Initialize all player scores to 0
         for player in self.players:
-            for r in range(1, 4):
-                if player in self.player_history[r]["player_bets"]:
-                    self.score[player] -= self.player_history[r]["player_bets"][player]
+            self.score[player] = 0
+        
+        # Winner gets the total pot
+        self.score[winner] = self.total_pot
+        
+        if self.debug:
+            print(f"Player {winner} wins with hand {self.hands[winner]}")
+            print(f"Total pot: {self.total_pot}")
+            print(f"Player history: {self.player_history}")
+
+        # Subtract each player's total bets from their score
+        # Round indexing starts from 0, so check all rounds that were played
+        for player in self.players:
+            total_bets = 0
+            for round_index in self.player_history:
+                if player in self.player_history[round_index]["player_bets"]:
+                    total_bets += self.player_history[round_index]["player_bets"][player]
+            self.score[player] -= total_bets
+            
+            if self.debug:
+                print(f"Player {player}: total bets = {total_bets}, final score = {self.score[player]}")
 
         if self.debug:
-            print(f"Scores: {self.score}")
+            print(f"Final Scores: {self.score}")
+            # Verify zero-sum
+            total_score = sum(self.score.values())
+            print(f"Total score (should be 0): {total_score}")
 
         self.is_running = False
+        # Blind rotation is now handled by the server
 
     def get_final_score(self):
         return self.score

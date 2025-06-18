@@ -1,4 +1,3 @@
-
 from poker_type.game import PokerAction
 from typing import List, Dict, Set
 
@@ -75,7 +74,7 @@ class RoundState:
                 raise ValueError("Raise amount + current bet must be higher than the current raise")
             self.raise_amount = self.player_bets[player_id] + amount
             self.bettor = player_id
-            self.pot += self.raise_amount
+            self.pot += amount  # Only add the amount being bet, not the total raise_amount
             self.player_bets[player_id] += amount
             self.waiting_for = set(p for p in self.player_bets.keys() if p != player_id)
             self._update_waiting_for_after_raise(player_id)

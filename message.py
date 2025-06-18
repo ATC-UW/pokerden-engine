@@ -54,15 +54,21 @@ class END(Message):
         return Message(data["message"])
     
 class START(Message):
-    def __init__(self, message: str, hands: List[str]):
+    def __init__(self, message: str, hands: List[str], blind_amount: int = 0, is_small_blind: bool = False, is_big_blind: bool = False):
         self.message = message
         self.type = MessageType.GAME_START
         self.hands = hands
+        self.blind_amount = blind_amount
+        self.is_small_blind = is_small_blind
+        self.is_big_blind = is_big_blind
 
     def serialize(self):
         return json.dumps({"type": self.type.value, "message": {
             "message": self.message,
-            "hands": self.hands
+            "hands": self.hands,
+            "blind_amount": self.blind_amount,
+            "is_small_blind": self.is_small_blind,
+            "is_big_blind": self.is_big_blind
         }})
 
     def __str__(self):
@@ -72,7 +78,14 @@ class START(Message):
     def parse(message_str):
         data = json.loads(message_str)
         if data["type"] == MessageType.GAME_START.value:
-            return START(data["message"], data["hands"])
+            msg_data = data["message"]
+            return START(
+                msg_data.get("message", ""),
+                msg_data.get("hands", []),
+                msg_data.get("blind_amount", 0),
+                msg_data.get("is_small_blind", False),
+                msg_data.get("is_big_blind", False)
+            )
         return Message(data["message"])
     
 class ROUND_END(Message):
