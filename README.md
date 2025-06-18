@@ -1,3 +1,8 @@
+[![Push Docker Image to Docker Hub](https://github.com/ATC-UW/pokerden-engine/actions/workflows/docker_publish.yml/badge.svg)](https://github.com/ATC-UW/pokerden-engine/actions/workflows/docker_publish.yml)
+
+[![Run Tests](https://github.com/ATC-UW/pokerden-engine/actions/workflows/test.yml/badge.svg)](https://github.com/ATC-UW/pokerden-engine/actions/workflows/test.yml)
+
+
 # PokerDen Engine
 
 PokerDen Engine is a backend engine designed to power poker games. It provides core functionalities for managing poker game logic, player interactions, and game state.
