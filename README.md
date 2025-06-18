@@ -2,48 +2,148 @@
 
 [![Run Tests](https://github.com/ATC-UW/pokerden-engine/actions/workflows/test.yml/badge.svg)](https://github.com/ATC-UW/pokerden-engine/actions/workflows/test.yml)
 
-
 # PokerDen Engine
 
-PokerDen Engine is a backend engine designed to power poker games. It provides core functionalities for managing poker game logic, player interactions, and game state.
+PokerDen Engine is a Python-based poker game server designed for poker bot development and testing. It provides a complete Texas Hold'em poker implementation with socket-based communication for real-time multiplayer gameplay.
 
-## Features
+## Architecture
 
-- **Game Logic**: Handles poker rules, hand evaluations, and game flow.
-- **Player Management**: Supports multiple players with real-time interactions.
-- **Customizable**: Easily extendable to support different poker variants.
-- **Scalable**: Designed to handle multiple games simultaneously.
+The engine consists of several key components:
+
+- **Game Logic** (`game/game.py`): Core poker rules, hand dealing, and scoring
+- **Server** (`server.py`): Socket server handling client connections and game flow
+- **Round State** (`game/round_state.py`): Betting round management and pot calculation
+- **Message Protocol** (`message.py`): JSON-based communication between server and clients
+- **Configuration** (`config.py`): Centralized settings and file paths
 
 ## Installation
 
+### Prerequisites
+- Python 3.7+
+- pip
+
+### Setup
+
 1. Clone the repository:
     ```bash
-    git clone https://github.com/yourusername/pokerden-engine.git
+    git clone https://github.com/ATC-UW/pokerden-engine.git
+    cd pokerden-engine
     ```
-2. Navigate to the project directory:
+
+2. Install Python dependencies:
     ```bash
-    cd pokerden-engine/game
-    ```
-3. Install dependencies:
-    ```bash
-    npm install
+    pip install -r requirements.txt
     ```
 
 ## Usage
 
-Start the server:
+### Basic Usage
+
+**Start a single game server:**
 ```bash
-npm start
+python main.py
 ```
+
+**Start with custom settings:**
+```bash
+python main.py --host 0.0.0.0 --port 5000 --players 4 --blind 20
+```
+
+### Simulation Mode
+
+**Run continuous simulation:**
+```bash
+python main.py --sim --sim-rounds 100 --blind 10
+```
+
+### Command Line Arguments
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--host` | `0.0.0.0` | Server host address |
+| `--port` | `5000` | Server port number |
+| `--players` | `2` | Number of required players |
+| `--timeout` | `30` | Turn timeout in seconds |
+| `--blind` | `10` | Blind amount (small blind = half) |
+| `--debug` | `False` | Enable debug logging |
+| `--sim` | `False` | Enable simulation mode |
+| `--sim-rounds` | `6` | Number of games in simulation |
+
+## Game Flow
+
+1. **Server Startup**: Server starts and waits for players to connect
+2. **Player Connection**: Clients connect via TCP sockets
+3. **Game Initialization**: Cards dealt, blinds assigned and posted
+4. **Betting Rounds**: Players act in sequence through all betting rounds
+5. **Showdown**: Best hand wins the pot
+6. **Game End**: Results logged, dealer button rotates (in continuous mode)
+
+## Output Files
+
+- **Single Game Mode**: Results written to `output/game_result.log`
+- **Simulation Mode**: Results written to `output/sim_result.log`
+- **Docker Mode**: Files written to `/app/output/`
+
+## Blind System
+
+- **Small Blind**: Half of the blind amount
+- **Big Blind**: Full blind amount
+- **Rotation**: Dealer button rotates clockwise after each game
+- **Heads-Up**: Dealer posts small blind, opponent posts big blind
+- **Multi-Player**: Small blind left of dealer, big blind left of small blind
+
+## Development
+
+### Project Structure
+```
+pokerden-engine/
+├── game/
+│   ├── game.py          # Core game logic
+│   └── round_state.py   # Betting round management
+├── poker_type/          # Type definitions and utilities
+├── message.py           # Communication protocol
+├── server.py            # Main server implementation
+├── main.py              # Entry point
+├── config.py            # Configuration settings
+└── requirements.txt     # Python dependencies
+```
+
+### Testing
+
+Run the test suite:
+```bash
+python -m pytest tests/
+```
+
+Run with debug output:
+```bash
+python main.py --debug --players 2
+```
+
+## Docker Usage
+
+Build and run with Docker:
+```bash
+docker build -t pokerden-engine .
+docker run -p 5000:5000 pokerden-engine --sim --sim-rounds 10
+```
+
+## Integration
+
+This engine is designed to work with the [poker-client](https://github.com/ATC-UW/poker-client) for complete bot development and testing workflows. Clients connect via TCP sockets and implement the Bot interface to play poker games.
 
 ## Contributing
 
-Contributions are welcome! Please fork the repository and submit a pull request.
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Contact
+## Support
 
-For questions or feedback, please contact [your-email@example.com].
+For questions, issues, or contributions, please open an issue on GitHub or contact the development team.
