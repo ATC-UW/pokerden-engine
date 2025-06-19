@@ -187,7 +187,9 @@ class PokerEngineServer:
                 self.game.get_player_hands(player_id),
                 self.blind_amount,
                 is_small_blind,
-                is_big_blind
+                is_big_blind,
+                self.game.get_small_blind_player(),
+                self.game.get_big_blind_player()
             )
             logger.debug(f"Sending start message to player {player_id}: {str(start_message)}")  
             self.send_message(player_id, str(start_message))
