@@ -54,13 +54,15 @@ class END(Message):
         return Message(data["message"])
     
 class START(Message):
-    def __init__(self, message: str, hands: List[str], blind_amount: int = 0, is_small_blind: bool = False, is_big_blind: bool = False):
+    def __init__(self, message: str, hands: List[str], blind_amount: int = 0, is_small_blind: bool = False, is_big_blind: bool = False, small_blind_player_id: int = None, big_blind_player_id: int = None):
         self.message = message
         self.type = MessageType.GAME_START
         self.hands = hands
         self.blind_amount = blind_amount
         self.is_small_blind = is_small_blind
         self.is_big_blind = is_big_blind
+        self.small_blind_player_id = small_blind_player_id
+        self.big_blind_player_id = big_blind_player_id
 
     def serialize(self):
         return json.dumps({"type": self.type.value, "message": {
@@ -68,7 +70,9 @@ class START(Message):
             "hands": self.hands,
             "blind_amount": self.blind_amount,
             "is_small_blind": self.is_small_blind,
-            "is_big_blind": self.is_big_blind
+            "is_big_blind": self.is_big_blind,
+            "small_blind_player_id": self.small_blind_player_id,
+            "big_blind_player_id": self.big_blind_player_id
         }})
 
     def __str__(self):
@@ -84,7 +88,9 @@ class START(Message):
                 msg_data.get("hands", []),
                 msg_data.get("blind_amount", 0),
                 msg_data.get("is_small_blind", False),
-                msg_data.get("is_big_blind", False)
+                msg_data.get("is_big_blind", False),
+                msg_data.get("small_blind_player_id", None),
+                msg_data.get("big_blind_player_id", None)
             )
         return Message(data["message"])
     
