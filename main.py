@@ -1,4 +1,6 @@
 import argparse
+import logging
+import os
 from server import PokerEngineServer
 from config import NUM_ROUNDS, OUTPUT_FILE_SIMULATION, OUTPUT_GAME_RESULT_FILE
 
@@ -12,7 +14,33 @@ if __name__ == "__main__":
     parser.add_argument('--sim', default=False, action='store_true', help='Enable simulation mode')
     parser.add_argument('--sim-rounds', type=int, default=NUM_ROUNDS, help='Number of rounds to simulate')
     parser.add_argument('--blind', type=int, default=10, help='Blind amount for the game')
+    parser.add_argument('--log-file', type=str, default=None, help='Log file path (if not specified, logs to console)')
     args = parser.parse_args()
+
+    # Configure logging
+    log_level = logging.DEBUG if args.debug else logging.INFO
+    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    
+    if args.log_file:
+        # Log to file
+        logging.basicConfig(
+            filename=args.log_file,
+            level=log_level,
+            format=log_format,
+            filemode='w'  # Overwrite the file each time
+        )
+        print(f"Logging to file: {args.log_file}")
+    else:
+        # Log to console
+        logging.basicConfig(
+            level=log_level,
+            format=log_format
+        )
+        print("Logging to console")
+
+    # Get the logger for this module
+    logger = logging.getLogger(__name__)
+    logger.info("Poker Engine Server starting...")
 
     # simulation mode
     if args.sim:
@@ -21,6 +49,7 @@ if __name__ == "__main__":
             with open(OUTPUT_FILE_SIMULATION, 'w') as sim_file:
                 sim_file.write("RUNNING\n")
 
+            logger.info(f"Starting continuous simulation mode for {args.sim_rounds} games")
             print(f"Starting continuous simulation mode for {args.sim_rounds} games")
             # Create one server that runs multiple games
             server = PokerEngineServer(args.host, args.port, args.players, args.timeout, args.debug, args.sim, args.blind)
@@ -28,6 +57,7 @@ if __name__ == "__main__":
             server.start_server()
 
         except KeyboardInterrupt:
+            logger.info("Shutting down simulation...")
             print("Shutting down simulation...")
             if 'server' in locals():
                 server.stop_server()
@@ -39,6 +69,7 @@ if __name__ == "__main__":
             with open(OUTPUT_GAME_RESULT_FILE, 'w') as game_file:
                 game_file.write("RUNNING\n")
 
+            logger.info("Starting single game mode")
             print("Starting single game mode")
             # Create server that runs 1 game (sim=False to use game_result output)
             server = PokerEngineServer(args.host, args.port, args.players, args.timeout, args.debug, False, args.blind)
@@ -46,6 +77,7 @@ if __name__ == "__main__":
             server.start_server()
 
         except KeyboardInterrupt:
+            logger.info("Shutting down server...")
             print("Shutting down server...")
             if 'server' in locals():
                 server.stop_server()

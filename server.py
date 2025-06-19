@@ -59,13 +59,16 @@ class PokerEngineServer:
         try:
             self.server_socket.bind((self.host, self.port))
             self.server_socket.listen(self.required_players)
+            logger.info(f"Server started on {self.host}:{self.port}")
             print(f"Server started on {self.host}:{self.port}")
+            logger.info(f"Waiting for {self.required_players} players to join...")
             print(f"Waiting for {self.required_players} players to join...")
             if not self.sim:
                 self.remove_file_content(OUTPUT_GAME_RESULT_FILE)
                 self.append_to_file(OUTPUT_GAME_RESULT_FILE, "RUNNING")
             self.accept_connections()
         except Exception as e:
+            logger.error(f"Error starting server: {e}")
             print(f"Error starting server: {e}")
             self.stop_server()
 
@@ -79,6 +82,7 @@ class PokerEngineServer:
         if self.sim:
             self.replace_running_with_done()
         
+        logger.info("Server stopped.")
         print("Server stopped.")
 
     def replace_running_with_done(self):
@@ -94,8 +98,10 @@ class PokerEngineServer:
                 with open(OUTPUT_FILE_SIMULATION, 'w') as file:
                     file.write(content)
                 
+                logger.info("Simulation status updated to DONE")
                 print("Simulation status updated to DONE")
         except Exception as e:
+            logger.error(f"Error updating simulation status: {e}")
             print(f"Error updating simulation status: {e}")
 
     def accept_connections(self):
@@ -105,12 +111,14 @@ class PokerEngineServer:
                 player_id = self.generate_player_id()
                 self.player_connections[player_id] = client_socket
                 self.player_addresses[player_id] = address
+                logger.info(f"Player {player_id} connected from {address}")
                 print(f"Player {player_id} connected from {address}")
 
                 with self.game_lock:
                     self.game.add_player(player_id)
             except Exception as e:
                 if self.running:
+                    logger.error(f"Error accepting connection: {e}")
                     print(f"Error accepting connection: {e}")
                 break
 
@@ -137,11 +145,14 @@ class PokerEngineServer:
         """Run multiple games with the same connections"""
         while self.running and len(self.player_connections) >= self.required_players:
             self.game_count += 1
+            logger.info(f"=== Starting Game #{self.game_count} ===")
             print(f"\n=== Starting Game #{self.game_count} ===")
+            logger.info(f"Dealer button position: {self.dealer_button_position}")
             print(f"Dealer button position: {self.dealer_button_position}")
             
             # Check if we've reached the simulation rounds limit
             if hasattr(self, 'simulation_rounds') and self.game_count > self.simulation_rounds:
+                logger.info(f"Reached simulation limit of {self.simulation_rounds} games. Stopping.")
                 print(f"Reached simulation limit of {self.simulation_rounds} games. Stopping.")
                 break
             
@@ -156,13 +167,16 @@ class PokerEngineServer:
             
             # Check if we should continue
             if len(self.player_connections) < self.required_players:
+                logger.warning("Not enough players remaining, stopping server.")
                 print("Not enough players remaining, stopping server.")
                 break
             
             # Wait a bit before starting the next game
+            logger.info(f"Waiting {SERVER_SIM_WAIT_BETWEEN_GAMES} seconds before starting next game...")
             print(f"Waiting {SERVER_SIM_WAIT_BETWEEN_GAMES} seconds before starting next game...")
             time.sleep(SERVER_SIM_WAIT_BETWEEN_GAMES)
         
+        logger.info("Game session ended.")
         print("Game session ended.")
         self.stop_server()
 
@@ -233,7 +247,7 @@ class PokerEngineServer:
                     if length == 0:
                         break
 
-                    print("Current player in game: ", waiting_for)
+                    logger.debug(f"Current player in game: {waiting_for}")
                     
                     # For the first round, prioritize blind players
                     if self.game.round_index == 0:
@@ -258,6 +272,7 @@ class PokerEngineServer:
 
                     idx = start_player_idx
                     while idx < start_player_idx + length:
+                        logger.debug(f"Current player index: {idx}, Player ID: {queue[idx % length]}")
                         print(f"Current player index: {idx}, Player ID: {queue[idx % length]}")
                         player_id = queue[idx % length]
                         
@@ -283,6 +298,7 @@ class PokerEngineServer:
                                     self.send_text_message(player_id, "Invalid action. Try again.")
                                     continue
                                 
+                                logger.info(f"Player {player_id} action: {action}")
                                 print(f"Player {player_id} action: {action}")
                                 ok = self.process_action(player_id, action)
                                 if not ok:
@@ -297,6 +313,7 @@ class PokerEngineServer:
                                 self.send_text_message(player_id, "Invalid action. Try again.")
                                 continue
                         except Exception as e:
+                            logger.error(f"Error receiving action from player {player_id}: {e}")
                             print(f"Error receiving action from player {player_id}: {e}")
                             self.remove_player(player_id)
                             break
@@ -316,6 +333,7 @@ class PokerEngineServer:
                 self.game.start_round()
 
         except Exception as e:
+            logger.error(f"Error running game: {e}")
             print(f"Error running game: {e}")
         finally:
             self.game_in_progress = False
@@ -331,6 +349,7 @@ class PokerEngineServer:
     def send_text_message(self, player_id, message):
         mes = TEXT(message)
         self.send_message(player_id, mes.serialize())
+        logger.debug(f"Sent message to player {player_id}: {message}")
         print(f"Sent message to player {player_id}: {message}")
 
     def broadcast(self, message):
@@ -350,6 +369,7 @@ class PokerEngineServer:
 
     def broadcast_game_state(self):
         round_name = get_round_name(self.game.round_index)
+        logger.debug(f"Broadcasting game state for round {round_name}")
         print(f"Broadcasting game state for round {round_name}")
 
         game_state = self.game.get_game_state()
@@ -364,11 +384,13 @@ class PokerEngineServer:
         action_type = action_message.message["action"]
 
         action_tuple = (get_poker_action_enum_from_index(action_type), action_message.message["amount"])
+        logger.info(f"Processing action from player {player_id}: {action_tuple}")
         print(f"Processing action from player {player_id}: {action_tuple}")
         try:
             self.game.update_game(player_id, action_tuple)
         except Exception as e:
             self.send_text_message(player_id, f"Invalid action: {e}")
+            logger.error(f"Error processing action from player {player_id}: {e}")
             print(f"Error processing action from player {player_id}: {e}")
             return False
 
@@ -380,6 +402,7 @@ class PokerEngineServer:
             self.player_connections[player_id].close()
             del self.player_connections[player_id]
             del self.player_addresses[player_id]
+            logger.info(f"Player {player_id} disconnected.")
             print(f"Player {player_id} disconnected.")
 
     def generate_player_id(self):
@@ -399,6 +422,6 @@ class PokerEngineServer:
 
     def rotate_dealer_button(self):
         """Rotate the dealer button to the next player"""
-        if len(self.player_connections) > 1:
-            self.dealer_button_position = (self.dealer_button_position + 1) % len(self.player_connections)
-            print(f"Dealer button rotated to position {self.dealer_button_position}")
+        self.dealer_button_position = (self.dealer_button_position + 1) % len(self.player_connections)
+        logger.info(f"Dealer button rotated to position {self.dealer_button_position}")
+        print(f"Dealer button rotated to position {self.dealer_button_position}")

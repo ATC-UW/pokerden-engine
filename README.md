@@ -68,6 +68,7 @@ python main.py --sim --sim-rounds 100 --blind 10
 | `--debug` | `False` | Enable debug logging |
 | `--sim` | `False` | Enable simulation mode |
 | `--sim-rounds` | `6` | Number of games in simulation |
+| `--log-file` | `None` | Log file path |
 
 ## Game Flow
 
@@ -147,3 +148,30 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 For questions, issues, or contributions, please open an issue on GitHub or contact the development team.
+
+## Logging
+
+The server supports comprehensive logging with the following features:
+
+- **Console Logging**: Default behavior, logs to stdout
+- **File Logging**: Use `--log-file` to log to a specific file
+- **Log Levels**: 
+  - INFO: General server activity, game events, player actions
+  - DEBUG: Detailed game state, message exchanges (when `--debug` is used)
+  - WARNING: Non-critical issues
+  - ERROR: Errors and exceptions
+
+### Example Log Files
+
+- `server.log`: General server logs
+- `simulation.log`: Simulation mode logs
+- `debug.log`: Debug mode logs with detailed information
+
+## Configuration
+
+Server configuration can be modified in `config.py`:
+
+- `NUM_ROUNDS`: Default number of simulation rounds
+- `OUTPUT_FILE_SIMULATION`: Simulation output file path
+- `OUTPUT_GAME_RESULT_FILE`: Game result output file path
+- `SERVER_SIM_WAIT_BETWEEN_GAMES`: Wait time between games in simulation mode
