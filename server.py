@@ -30,7 +30,7 @@ from poker_type.utils import (
 logger = logging.getLogger(__name__)
 
 class PokerEngineServer:
-    def __init__(self, host='localhost', port=5000, num_players=2, turn_timeout=30, debug=False, sim=False, blind_amount=10):
+    def __init__(self, host='localhost', port=5000, num_players=2, turn_timeout=30, debug=False, sim=False, blind_amount=10, blind_multiplier=1.0, blind_increase_interval=0):
         self.host = host
         self.port = port
         self.required_players = num_players
@@ -38,6 +38,9 @@ class PokerEngineServer:
         self.debug = debug
         self.sim = sim
         self.blind_amount = blind_amount
+        self.initial_blind_amount = blind_amount  # Store the initial blind amount
+        self.blind_multiplier = blind_multiplier
+        self.blind_increase_interval = blind_increase_interval
         
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -125,10 +128,27 @@ class PokerEngineServer:
         if len(self.player_connections) == self.required_players:
             self.run_continuous_games()
 
+    def update_blind_amount(self):
+        """Update blind amount based on the game count and blind increase settings"""
+        if self.blind_increase_interval > 0 and self.game_count > 0:
+            # Calculate how many times the blind should have increased
+            increase_count = self.game_count // self.blind_increase_interval
+            if increase_count > 0:
+                # Calculate new blind amount
+                new_blind_amount = int(self.initial_blind_amount * (self.blind_multiplier ** increase_count))
+                if new_blind_amount != self.blind_amount:
+                    old_blind = self.blind_amount
+                    self.blind_amount = new_blind_amount
+                    print(f"Blind increased from {old_blind} to {self.blind_amount} (increase #{increase_count})")
+                    self.broadcast_text(f"Blind amount increased to {self.blind_amount}!")
+
     def reset_game_state(self):
         """Reset the game state for a new game while keeping the same players"""
         with self.game_lock:
-            # Create a new game instance
+            # Update blind amount if needed
+            self.update_blind_amount()
+            
+            # Create a new game instance with the current blind amount
             self.game = Game(self.debug, self.blind_amount)
             
             # Set the current dealer button position
@@ -201,7 +221,9 @@ class PokerEngineServer:
                 self.game.get_player_hands(player_id),
                 self.blind_amount,
                 is_small_blind,
-                is_big_blind
+                is_big_blind,
+                self.game.get_small_blind_player(),
+                self.game.get_big_blind_player()
             )
             logger.debug(f"Sending start message to player {player_id}: {str(start_message)}")  
             self.send_message(player_id, str(start_message))

@@ -15,6 +15,8 @@ if __name__ == "__main__":
     parser.add_argument('--sim-rounds', type=int, default=NUM_ROUNDS, help='Number of rounds to simulate')
     parser.add_argument('--blind', type=int, default=10, help='Blind amount for the game')
     parser.add_argument('--log-file', type=str, default=None, help='Log file path (if not specified, logs to console)')
+    parser.add_argument('--blind-multiplier', type=float, default=1.0, help='Factor to multiply blind amount by (default: 1.0 = no increase)')
+    parser.add_argument('--blind-increase-interval', type=int, default=0, help='Number of games after which to increase blinds (default: 0 = never increase)')
     args = parser.parse_args()
 
     # Configure logging
@@ -52,7 +54,7 @@ if __name__ == "__main__":
             logger.info(f"Starting continuous simulation mode for {args.sim_rounds} games")
             print(f"Starting continuous simulation mode for {args.sim_rounds} games")
             # Create one server that runs multiple games
-            server = PokerEngineServer(args.host, args.port, args.players, args.timeout, args.debug, args.sim, args.blind)
+            server = PokerEngineServer(args.host, args.port, args.players, args.timeout, args.debug, args.sim, args.blind, args.blind_multiplier, args.blind_increase_interval)
             server.simulation_rounds = args.sim_rounds  # Add this attribute to track rounds
             server.start_server()
 
@@ -72,7 +74,7 @@ if __name__ == "__main__":
             logger.info("Starting single game mode")
             print("Starting single game mode")
             # Create server that runs 1 game (sim=False to use game_result output)
-            server = PokerEngineServer(args.host, args.port, args.players, args.timeout, args.debug, False, args.blind)
+            server = PokerEngineServer(args.host, args.port, args.players, args.timeout, args.debug, False, args.blind, args.blind_multiplier, args.blind_increase_interval)
             server.simulation_rounds = 1  # Set to run only 1 game
             server.start_server()
 

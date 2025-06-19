@@ -65,6 +65,8 @@ python main.py --sim --sim-rounds 100 --blind 10
 | `--players` | `2` | Number of required players |
 | `--timeout` | `30` | Turn timeout in seconds |
 | `--blind` | `10` | Blind amount (small blind = half) |
+| `--blind-multiplier` | `1.0` | Factor to multiply blind amount by (default: 1.0 = no increase) |
+| `--blind-increase-interval` | `0` | Number of games after which to increase blinds (default: 0 = never increase) |
 | `--debug` | `False` | Enable debug logging |
 | `--sim` | `False` | Enable simulation mode |
 | `--sim-rounds` | `6` | Number of games in simulation |
@@ -92,6 +94,26 @@ python main.py --sim --sim-rounds 100 --blind 10
 - **Rotation**: Dealer button rotates clockwise after each game
 - **Heads-Up**: Dealer posts small blind, opponent posts big blind
 - **Multi-Player**: Small blind left of dealer, big blind left of small blind
+
+### Blind Increase System
+
+The engine supports automatic blind increases during continuous games or simulations:
+
+- **Blind Multiplier**: Factor by which blinds are multiplied (e.g., 2.0 doubles blinds)
+- **Increase Interval**: Number of games after which blinds increase
+- **Formula**: `new_blind = initial_blind × (multiplier ^ increase_count)`
+
+**Examples:**
+```bash
+# Double blinds every 5 games
+python main.py --sim --blind-multiplier 2.0 --blind-increase-interval 5
+
+# Increase blinds by 50% every 10 games
+python main.py --sim --blind-multiplier 1.5 --blind-increase-interval 10
+
+# No blind increase (default)
+python main.py --sim --blind-multiplier 1.0 --blind-increase-interval 0
+```
 
 ## Development
 
