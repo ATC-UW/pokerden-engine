@@ -36,12 +36,19 @@ class CONNECT(Message):
 
     
 class END(Message):
-    def __init__(self, score):
-        self.message = score
+    def __init__(self, score, all_scores=None):
+        self.message = score  # Individual player's score for backwards compatibility
+        self.all_scores = all_scores or {}  # Dictionary of all player scores
         self.type = MessageType.GAME_END
 
     def serialize(self):
-        return json.dumps({"type": self.type.value, "message": self.message})
+        return json.dumps({
+            "type": self.type.value, 
+            "message": {
+                "player_score": self.message,
+                "all_scores": self.all_scores
+            }
+        })
 
     def __str__(self):
         return self.serialize()
@@ -50,11 +57,15 @@ class END(Message):
     def parse(message_str):
         data = json.loads(message_str)
         if data["type"] == MessageType.GAME_END.value:
-            return END(data["message"])
+            msg_data = data["message"]
+            return END(
+                msg_data.get("player_score", 0),
+                msg_data.get("all_scores", {})
+            )
         return Message(data["message"])
     
 class START(Message):
-    def __init__(self, message: str, hands: List[str], blind_amount: int = 0, is_small_blind: bool = False, is_big_blind: bool = False, small_blind_player_id: int = None, big_blind_player_id: int = None):
+    def __init__(self, message: str, hands: List[str], blind_amount: int = 0, is_small_blind: bool = False, is_big_blind: bool = False, small_blind_player_id: int = None, big_blind_player_id: int = None, all_players: List[int] = None):
         self.message = message
         self.type = MessageType.GAME_START
         self.hands = hands
@@ -63,6 +74,7 @@ class START(Message):
         self.is_big_blind = is_big_blind
         self.small_blind_player_id = small_blind_player_id
         self.big_blind_player_id = big_blind_player_id
+        self.all_players = all_players or []
 
     def serialize(self):
         return json.dumps({"type": self.type.value, "message": {
@@ -72,7 +84,8 @@ class START(Message):
             "is_small_blind": self.is_small_blind,
             "is_big_blind": self.is_big_blind,
             "small_blind_player_id": self.small_blind_player_id,
-            "big_blind_player_id": self.big_blind_player_id
+            "big_blind_player_id": self.big_blind_player_id,
+            "all_players": self.all_players
         }})
 
     def __str__(self):
@@ -90,7 +103,8 @@ class START(Message):
                 msg_data.get("is_small_blind", False),
                 msg_data.get("is_big_blind", False),
                 msg_data.get("small_blind_player_id", None),
-                msg_data.get("big_blind_player_id", None)
+                msg_data.get("big_blind_player_id", None),
+                msg_data.get("all_players", [])
             )
         return Message(data["message"])
     

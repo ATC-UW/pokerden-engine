@@ -224,12 +224,47 @@ class Game:
         }
 
     def end_game(self):
-        # Get all pots from the final round
-        if self.current_round and hasattr(self.current_round, 'pots'):
+        # Ensure current round bets are included in player history if not already
+        if self.current_round and self.round_index not in self.player_history:
+            self.player_history[self.round_index] = {
+                "pot": self.current_round.pot,
+                "player_bets": self.current_round.player_bets,
+                "player_actions": self.current_round.player_actions
+            }
+        
+        # Calculate total pot from all rounds - this is the most reliable approach
+        total_pot_amount = 0
+        for round_index in self.player_history:
+            round_bets = self.player_history[round_index]["player_bets"]
+            total_pot_amount += sum(round_bets.values())
+        
+        if self.debug:
+            print(f"Total pot amount calculated from all rounds: {total_pot_amount}")
+        
+        # Use side pots from current round if they exist, but update their amounts to reflect the total
+        if (self.current_round and hasattr(self.current_round, 'pots') and 
+            self.current_round.pots and len(self.current_round.pots) > 1):
+            # Multiple pots exist (side pot scenario) - preserve the structure but fix amounts
+            if self.debug:
+                print(f"Using side pot structure with {len(self.current_round.pots)} pots")
+            
+            # Force recalculation to ensure correct amounts
+            # Temporarily restore current round bets to calculate side pots correctly
+            total_current_bets = sum(self.current_round.player_bets.values())
+            if total_current_bets == 0:
+                # Current round has no bets, use the last round that had bets
+                for round_idx in reversed(list(self.player_history.keys())):
+                    if sum(self.player_history[round_idx]["player_bets"].values()) > 0:
+                        self.current_round.player_bets = self.player_history[round_idx]["player_bets"]
+                        break
+            
+            self.current_round._create_side_pots()
             final_pots = self.current_round.pots
         else:
-            # Fallback to simple pot calculation
-            final_pots = [type('Pot', (), {'amount': self.total_pot, 'eligible_players': set(self.active_players)})()]
+            # Single pot scenario
+            if self.debug:
+                print("Using single pot for all players")
+            final_pots = [type('Pot', (), {'amount': total_pot_amount, 'eligible_players': set(self.active_players)})()]
         
         # Evaluate hands for all active players
         hand_values = {}
@@ -248,6 +283,9 @@ class Game:
         
         # Award each pot to the best hand among eligible players
         for i, pot in enumerate(final_pots):
+            print(f"Pot {i}: {pot.amount} chips, eligible players: {pot.eligible_players}")
+            print(f"Active players: {self.active_players}")
+            print(f"Player history: {self.player_history}")
             if pot.amount == 0:
                 continue
                 
@@ -297,7 +335,7 @@ class Game:
             if self.debug:
                 print(f"Player {player}: total bets = {total_bets}, final score = {self.score[player]}")
 
-        if self.debug:
+        if True:
             print(f"Final Scores: {self.score}")
             # Verify zero-sum
             total_score = sum(self.score.values())
