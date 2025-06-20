@@ -249,7 +249,10 @@ class PokerEngineServer:
                     self.broadcast_text(f"Game #{self.game_count} over!")
                     score = self.game.get_final_score()
                     for player_id in score.keys():
-                        end_message = END(score[player_id], score)
+                        # get active players hands information
+                        active_players = self.game.get_active_players()
+                        active_players_hands = {player_id: self.game.get_player_hands(player_id) for player_id in active_players}
+                        end_message = END(score[player_id], score, active_players_hands)
                         print(f"End message: {end_message}")
                         print(f"Score: {score}")
                         self.send_message(player_id, str(end_message))

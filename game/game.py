@@ -110,6 +110,12 @@ class Game:
         self.players.append(player_id)
         self.active_players.append(player_id)
 
+    def get_active_players(self):
+        return self.active_players
+    
+    def get_player_hands(self, player_id: int):
+        return self.hands[player_id]
+
     def print_debug(self):
         if self.debug:
             s = f"Players: {self.players} \n Active Players: {self.active_players} \n Hands: {self.hands} \n Board: {self.board} \n Round Index: {self.round_index} \n Total Pot: {self.total_pot} \n Historical Pots: {self.historical_pots} \n Player History: {self.player_history} \n \t Current Round: \n {self.current_round}"

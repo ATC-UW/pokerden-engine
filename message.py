@@ -36,9 +36,10 @@ class CONNECT(Message):
 
     
 class END(Message):
-    def __init__(self, score, all_scores=None):
+    def __init__(self, score, all_scores=None, active_players_hands=None):
         self.message = score  # Individual player's score for backwards compatibility
         self.all_scores = all_scores or {}  # Dictionary of all player scores
+        self.active_players_hands = active_players_hands or {}  # Dictionary of all player hands
         self.type = MessageType.GAME_END
 
     def serialize(self):
@@ -46,7 +47,8 @@ class END(Message):
             "type": self.type.value, 
             "message": {
                 "player_score": self.message,
-                "all_scores": self.all_scores
+                "all_scores": self.all_scores,
+                "active_players_hands": self.active_players_hands
             }
         })
 
@@ -60,7 +62,8 @@ class END(Message):
             msg_data = data["message"]
             return END(
                 msg_data.get("player_score", 0),
-                msg_data.get("all_scores", {})
+                msg_data.get("all_scores", {}),
+                msg_data.get("active_players_hands", {})
             )
         return Message(data["message"])
     
