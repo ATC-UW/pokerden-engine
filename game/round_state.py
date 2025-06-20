@@ -38,16 +38,23 @@ class RoundState:
 
     def _create_side_pots(self):
         """Create side pots when players have unequal investments"""
-        # Get all active players (not folded)
+        # Get all active players (not folded) - these are eligible to win pots
         active_players = set()
         for player_id, action in self.player_actions.items():
             if action != PokerAction.FOLD:
                 active_players.add(player_id)
         
         if len(active_players) <= 1:
-            return  # Not enough players for side pots
+            # Still create pots even with 1 or 0 active players (folded players contribute)
+            total_pot = sum(self.player_bets.values())
+            if len(active_players) == 1:
+                self.pots = [Pot(total_pot, active_players)]
+            else:
+                # All players folded - money goes nowhere, but we need to track it
+                self.pots = [Pot(total_pot, set())]
+            return
         
-        # Get unique bet levels in ascending order
+        # Get unique bet levels in ascending order (from ALL players, including folded)
         bet_levels = sorted(set(bet for bet in self.player_bets.values() if bet > 0))
         
         if len(bet_levels) <= 1:
@@ -65,12 +72,15 @@ class RoundState:
             level_contribution = current_level - prev_level
             
             # Find players who contributed to this level (bet >= current_level)
+            # Count ALL players who bet at this level, including folded ones
             eligible_players = set()
             contributing_count = 0
             for player_id, bet_amount in self.player_bets.items():
-                if player_id in active_players and bet_amount >= current_level:
-                    eligible_players.add(player_id)
+                if bet_amount >= current_level:
                     contributing_count += 1
+                    # Only active players are eligible to win
+                    if player_id in active_players:
+                        eligible_players.add(player_id)
             
             if contributing_count > 0 and level_contribution > 0:
                 pot_amount = level_contribution * contributing_count

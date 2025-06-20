@@ -209,6 +209,7 @@ class PokerEngineServer:
 
         self.game.start_game()
         # broadcast message with hands to each player
+        all_player_ids = list(self.player_connections.keys())
         for (player_id, conn) in self.player_connections.items():
             logger.debug(f"Player {player_id} hands: {self.game.get_player_hands(player_id)}")
             
@@ -223,7 +224,8 @@ class PokerEngineServer:
                 is_small_blind,
                 is_big_blind,
                 self.game.get_small_blind_player(),
-                self.game.get_big_blind_player()
+                self.game.get_big_blind_player(),
+                all_player_ids
             )
             logger.debug(f"Sending start message to player {player_id}: {str(start_message)}")  
             self.send_message(player_id, str(start_message))
@@ -247,7 +249,12 @@ class PokerEngineServer:
                     self.broadcast_text(f"Game #{self.game_count} over!")
                     score = self.game.get_final_score()
                     for player_id in score.keys():
-                        end_message = END(score[player_id])
+                        # get active players hands information
+                        active_players = self.game.get_active_players()
+                        active_players_hands = {player_id: self.game.get_player_hands(player_id) for player_id in active_players}
+                        end_message = END(score[player_id], score, active_players_hands)
+                        print(f"End message: {end_message}")
+                        print(f"Score: {score}")
                         self.send_message(player_id, str(end_message))
                     # TODO: Add a reveal cards message
                     self.game_in_progress = False
