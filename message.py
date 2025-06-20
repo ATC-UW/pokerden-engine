@@ -184,7 +184,8 @@ class GAME_STATE(Message):
                 "player_bets": self.message.player_bets,
                 "player_actions": self.message.player_actions,
                 "min_raise": self.message.min_raise,
-                "max_raise": self.message.max_raise
+                "max_raise": self.message.max_raise,
+                "side_pots": self.message.side_pots or []
             }
         })
     
@@ -207,7 +208,8 @@ class GAME_STATE(Message):
                 player_bets=msg["player_bets"],
                 player_actions=msg["player_actions"],
                 min_raise=msg["min_raise"],
-                max_raise=msg["max_raise"]
+                max_raise=msg["max_raise"],
+                side_pots=msg.get("side_pots", [])
             )
             return GAME_STATE(game_state)
         raise ValueError("Invalid message type")
