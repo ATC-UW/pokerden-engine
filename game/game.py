@@ -224,31 +224,69 @@ class Game:
         }
 
     def end_game(self):
-        final = {}
-        for player in self.active_players:
-            final[player] = 0
-
+        # Get all pots from the final round
+        if self.current_round and hasattr(self.current_round, 'pots'):
+            final_pots = self.current_round.pots
+        else:
+            # Fallback to simple pot calculation
+            final_pots = [type('Pot', (), {'amount': self.total_pot, 'eligible_players': set(self.active_players)})()]
+        
+        # Evaluate hands for all active players
+        hand_values = {}
         for player in self.active_players:
             players_hand = self.hands[player].copy()
             players_hand.extend(self.board)
-            final[player] = eval7.evaluate(players_hand)
-
-        winner = max(final, key=final.get)
+            hand_values[player] = eval7.evaluate(players_hand)
         
         # Initialize all player scores to 0
         for player in self.players:
             self.score[player] = 0
         
-        # Winner gets the total pot
-        self.score[winner] = self.total_pot
-        
         if self.debug:
-            print(f"Player {winner} wins with hand {self.hands[winner]}")
-            print(f"Total pot: {self.total_pot}")
-            print(f"Player history: {self.player_history}")
+            print(f"Hand values: {hand_values}")
+            print(f"Distributing {len(final_pots)} pot(s)")
+        
+        # Award each pot to the best hand among eligible players
+        for i, pot in enumerate(final_pots):
+            if pot.amount == 0:
+                continue
+                
+            # Find eligible players who are still active
+            eligible_active_players = pot.eligible_players.intersection(set(self.active_players))
+            
+            if len(eligible_active_players) == 0:
+                if self.debug:
+                    print(f"Pot {i}: No eligible active players, pot amount {pot.amount} is lost")
+                continue
+            
+            # Find the best hand among eligible players
+            eligible_hand_values = {player: hand_values[player] for player in eligible_active_players}
+            pot_winners = [player for player, value in eligible_hand_values.items() 
+                          if value == max(eligible_hand_values.values())]
+            
+            # Split pot among tied winners
+            pot_share = pot.amount // len(pot_winners)
+            remainder = pot.amount % len(pot_winners)
+            
+            if self.debug:
+                print(f"Pot {i}: {pot.amount} chips, eligible players: {eligible_active_players}")
+                print(f"Winners: {pot_winners}, each gets {pot_share} chips")
+                if remainder > 0:
+                    print(f"Remainder of {remainder} chips goes to player {pot_winners[0]}")
+            
+            for j, winner in enumerate(pot_winners):
+                self.score[winner] += pot_share
+                # Give remainder to first winner (arbitrary but fair)
+                if j == 0:
+                    self.score[winner] += remainder
+
+        if self.debug:
+            print(f"Player hands:")
+            for player in self.active_players:
+                print(f"  Player {player}: {self.hands[player]}")
+            print(f"Total pot distributed: {sum(pot.amount for pot in final_pots)}")
 
         # Subtract each player's total bets from their score
-        # Round indexing starts from 0, so check all rounds that were played
         for player in self.players:
             total_bets = 0
             for round_index in self.player_history:
@@ -279,6 +317,9 @@ class Game:
                 continue
             actions_text[player] = get_poker_action_name_from_enum(self.current_round.player_actions[player])
 
+        # Get side pot information
+        side_pots_info = self.current_round.get_side_pots_info() if hasattr(self.current_round, 'get_side_pots_info') else []
+
         return GameStateMessage(
             round_num=self.round_index,
             round=round_name,
@@ -290,4 +331,5 @@ class Game:
             player_actions=actions_text,
             min_raise=self.current_round.raise_amount,
             max_raise=self.current_round.raise_amount * 2,
+            side_pots=side_pots_info
         )

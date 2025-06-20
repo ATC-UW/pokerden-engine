@@ -28,6 +28,7 @@ class GameStateMessage():
     max_raise: int
     player_bets: Dict[int, int]
     player_actions: Dict[int, str]
+    side_pots: List[Dict] = None  # New field for side pot information
 
 @dataclass
 class RequestPlayerActionMessage():
