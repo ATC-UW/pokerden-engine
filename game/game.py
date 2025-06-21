@@ -353,7 +353,7 @@ class Game:
     def get_final_score(self):
         return self.score
     
-    def get_game_state(self) -> GameStateMessage:
+    def get_game_state(self, player_money: Dict[int, int] = None) -> GameStateMessage:
         round_name = get_round_name(self.round_index)
         actions_text = {}
         for player in self.current_round.player_actions:
@@ -373,6 +373,7 @@ class Game:
             current_bet=self.current_round.raise_amount,
             player_bets=self.current_round.player_bets,
             player_actions=actions_text,
+            player_money=player_money,
             min_raise=self.current_round.raise_amount,
             max_raise=self.current_round.raise_amount * 2,
             side_pots=side_pots_info
