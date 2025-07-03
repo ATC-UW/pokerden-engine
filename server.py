@@ -9,6 +9,7 @@ from config import (
     PORT,
     OUTPUT_GAME_RESULT_FILE, 
     OUTPUT_FILE_SIMULATION,
+    RETRY_COUNT,
     SERVER_SIM_WAIT_BETWEEN_GAMES, 
     DEFAULT_NUM_PLAYERS, 
     DEFAULT_TURN_TIMEOUT, 
@@ -360,44 +361,76 @@ class PokerEngineServer:
                         if player_id not in self.player_connections:
                             idx += 1
                             continue  # Skip removed players
+                        
+                        retry_count = 0
+                        action_processed = False
+                        
+                        while retry_count < RETRY_COUNT and not action_processed:
+                            conn = self.player_connections[player_id]
                             
-                        conn = self.player_connections[player_id]
-
-                        request_action_message = REQUEST_PLAYER_MESSAGE(player_id, 0)
-                        self.send_message(player_id, str(request_action_message))
-
-                        try:
-                            conn.settimeout(1)
-                            action = conn.recv(4096).decode('utf-8')
-                            if not action:
-                                self.remove_player(player_id)
+                            # Check if player is still connected
+                            if player_id not in self.player_connections:
                                 break
 
-                            else:
+                            request_action_message = REQUEST_PLAYER_MESSAGE(player_id, 0)
+                            self.send_message(player_id, str(request_action_message))
+
+                            try:
+                                conn.settimeout(30)
+                                action = conn.recv(4096).decode('utf-8')
+                                
+                                if not action:
+                                    logger.warning(f"Player {player_id} disconnected during action request")
+                                    self.remove_player(player_id)
+                                    break
+
                                 action = action.strip()
                                 if action == "":
-                                    self.send_text_message(player_id, "Invalid action. Try again.")
+                                    retry_count += 1
+                                    self.send_text_message(player_id, f"Invalid action. Try again. ({retry_count}/{RETRY_COUNT})")
+                                    logger.info(f"Player {player_id} sent empty action. Retry {retry_count}/{RETRY_COUNT}")
                                     continue
                                 
                                 logger.info(f"Player {player_id} action: {action}")
                                 print(f"Player {player_id} action: {action}")
+                                
                                 ok = self.process_action(player_id, action)
-                                if not ok:
-                                    self.send_text_message(player_id, "Invalid action. Try again.")
-                                    continue
-                        except socket.timeout:
-                            self.send_text_message(player_id, "Timeout!")
-                            action = PLAYER_ACTION(player_id, PokerAction.FOLD.value, 0)
-
-                            ok = self.process_action(player_id, str(action))
-                            if not ok:
-                                self.send_text_message(player_id, "Invalid action. Try again.")
-                                continue
-                        except Exception as e:
-                            logger.error(f"Error receiving action from player {player_id}: {e}")
-                            print(f"Error receiving action from player {player_id}: {e}")
-                            self.remove_player(player_id)
-                            break
+                                if ok:
+                                    action_processed = True
+                                    logger.info(f"Player {player_id} action processed successfully")
+                                else:
+                                    retry_count += 1
+                                    self.send_text_message(player_id, f"Invalid action. Try again. ({retry_count}/{RETRY_COUNT})")
+                                    logger.info(f"Player {player_id} sent invalid action. Retry {retry_count}/{RETRY_COUNT}")
+                                    
+                            except socket.timeout:
+                                retry_count += 1
+                                logger.warning(f"Player {player_id} timeout. Retry {retry_count}/{RETRY_COUNT}")
+                                self.send_text_message(player_id, f"Timeout! Try again. ({retry_count}/{RETRY_COUNT})")
+                                
+                            except Exception as e:
+                                logger.error(f"Error receiving action from player {player_id}: {e}")
+                                print(f"Error receiving action from player {player_id}: {e}")
+                                retry_count += 1
+                                if retry_count < RETRY_COUNT:
+                                    self.send_text_message(player_id, f"Connection error. Try again. ({retry_count}/{RETRY_COUNT})")
+                        
+                        # If we've exhausted retries and no action was processed, automatically fold the player
+                        if not action_processed and player_id in self.player_connections:
+                            logger.warning(f"Player {player_id} exhausted {RETRY_COUNT} retries. Automatically folding.")
+                            print(f"Player {player_id} exhausted {RETRY_COUNT} retries. Automatically folding.")
+                            
+                            # Force fold action
+                            fold_action = PLAYER_ACTION(player_id, PokerAction.FOLD.value, 0)
+                            fold_ok = self.process_action(player_id, str(fold_action))
+                            
+                            if fold_ok:
+                                self.broadcast_text(f"Player {player_id} was automatically folded due to invalid actions")
+                                logger.info(f"Player {player_id} successfully auto-folded")
+                            else:
+                                logger.error(f"Failed to auto-fold player {player_id}")
+                                # As last resort, remove the player from the game
+                                self.remove_player(player_id)
 
                         idx += 1
 
