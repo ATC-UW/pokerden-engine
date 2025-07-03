@@ -380,9 +380,10 @@ class PokerEngineServer:
                                 action = conn.recv(4096).decode('utf-8')
                                 
                                 if not action:
-                                    logger.warning(f"Player {player_id} disconnected during action request")
-                                    self.remove_player(player_id)
-                                    break
+                                    retry_count += 1
+                                    self.send_text_message(player_id, f"Invalid action. Try again. ({retry_count}/{RETRY_COUNT})")
+                                    logger.info(f"Player {player_id} sent empty action. Retry {retry_count}/{RETRY_COUNT}")
+                                    continue
 
                                 action = action.strip()
                                 if action == "":
@@ -429,8 +430,6 @@ class PokerEngineServer:
                                 logger.info(f"Player {player_id} successfully auto-folded")
                             else:
                                 logger.error(f"Failed to auto-fold player {player_id}")
-                                # As last resort, remove the player from the game
-                                self.remove_player(player_id)
 
                         idx += 1
 
@@ -468,11 +467,8 @@ class PokerEngineServer:
 
     def broadcast(self, message):
         message = message + "\n"
-        for player_id, conn in self.player_connections.items():
-            try:
-                conn.sendall(message.encode('utf-8'))
-            except:
-                self.remove_player(player_id)
+        for _, conn in self.player_connections.items():
+            conn.sendall(message.encode('utf-8'))
 
     def broadcast_text(self, message):
         mes = TEXT(message)
