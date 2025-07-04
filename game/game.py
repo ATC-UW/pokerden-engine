@@ -45,7 +45,7 @@ class Game:
             "playerHands": {},
             "finalBoard": [],
             "blinds": {},
-            "sidePots": {},
+            "sidePots": [],
         }
 
     def set_blind_amount(self, amount: int):
