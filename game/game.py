@@ -11,6 +11,7 @@ from config import BASE_PATH
 import time
 import os
 import json
+import uuid
 
 GAME_ROUNDS = [PokerRound.PREFLOP, PokerRound.FLOP, PokerRound.TURN, PokerRound.RIVER]
 
@@ -30,6 +31,7 @@ class Game:
         self.current_round: RoundState = None
         self.score = {}
         self.is_running = False
+        self.game_start_time = 0
         
         # Blind functionality
         self.blind_amount = blind_amount
@@ -44,7 +46,6 @@ class Game:
             "finalBoard": [],
             "blinds": {},
             "sidePots": {},
-
         }
 
     def set_blind_amount(self, amount: int):
@@ -167,10 +168,20 @@ class Game:
         return self.current_round.is_round_complete()
 
     def start_game(self):
+        self.game_start_time = int(time.time() * 1000)
         self.deck = PokerDeck()
         self.deck.shuffle()
         self.round_index = 0
         self.is_running = True
+
+        self.json_game_log = {
+            "gameId": str(uuid.uuid4()),
+            "rounds": {},
+            "playerNames": {},
+            "blinds": {},
+            "finalBoard": [],
+            "sidePots": []
+        }
 
         # Deal two cards to each player
         for player in self.active_players:
@@ -187,9 +198,9 @@ class Game:
         # Assign blinds for this game
         self.assign_blinds()
         
-        self.json_game_log['playerNames'] = {p_id: f"player{p_id}" for p_id in self.players}
+        self.json_game_log['playerNames'] = {p_id - 1: f"player{p_id}" for p_id in self.players}
 
-        self.json_game_log['playerHands'] = {p_id: [str(card) for card in hand] for p_id, hand in self.hands.items()}
+        self.json_game_log['playerHands'] = {p_id - 1: [str(card) for card in hand] for p_id, hand in self.hands.items()}
 
         self.json_game_log['blinds'] = {
             "small": self.blind_amount // 2,
@@ -215,6 +226,9 @@ class Game:
 
         # Update round state
         self.current_round.update_player_action(player_id, action_type, amount)
+
+        relative_time = int(time.time() * 1000) - self.game_start_time
+        self.current_round.player_action_times[player_id] = relative_time
         
         # Remove player from active players if they folded
         if action_type == PokerAction.FOLD:
@@ -247,15 +261,15 @@ class Game:
             raise ValueError("Round cannot end while players are still waiting to act")
         
         actions = {
-            p_id: get_poker_action_name_from_enum(action) if action else "NO_ACTION" 
+            p_id: get_poker_action_name_from_enum(action).upper() if action else "NO_ACTION"
             for p_id, action in self.current_round.player_actions.items()
         }
 
         self.json_game_log['rounds'][self.round_index] = {
             "pot": self.current_round.pot,
-            "bets": self.current_round.player_bets.copy(),
-            "actions": actions,
-            "actionTimes": {p_id: int(time.time() * 1000) for p_id in self.players}
+            "bets": {p_id - 1: bet for p_id, bet in self.current_round.player_bets.items()},
+            "actions": {p_id - 1: action for p_id, action in actions.items()},
+            "actionTimes": {p_id - 1: t for p_id, t in self.current_round.player_action_times.items()}
         }
 
         self.historical_pots.append(self.current_round.pot)
@@ -388,10 +402,18 @@ class Game:
         # Blind rotation is now handled by the server
 
         if self.current_round and hasattr(self.current_round, 'get_side_pots_info'):
-            self.json_game_log['sidePots'] = self.current_round.get_side_pots_info()
+            side_pots_info = self.current_round.get_side_pots_info()
+            self.json_game_log['sidePots'] = [
+                {
+                    "amount": pot["amount"],
+                    "eligible_players": [p - 1 for p in pot["eligible_players"]]
+                }
+                for pot in side_pots_info
+            ]
 
         try:
-            filename = f"game_log_{int(time.time())}.json"
+            game_id = self.json_game_log.get('gameId', f"unknown_{int(time.time())}")
+            filename = f"game_log_{game_id}.json"
             filepath = os.path.join(BASE_PATH, filename)
 
             with open(filepath, 'w') as f:
