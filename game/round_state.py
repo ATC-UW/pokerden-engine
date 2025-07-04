@@ -21,7 +21,8 @@ class RoundState:
         self.player_bets: Dict[int, int] = {player: 0 for player in active_players}
         self.player_actions: Dict[int, PokerAction] = {}
         self.all_in_players: Set[int] = set()  # Track all-in players
-    
+        self.player_action_times: Dict[int, int] = {}
+
     @property
     def pot(self) -> int:
         """Total pot amount across all pots (for backward compatibility)"""
@@ -191,6 +192,7 @@ class RoundState:
         self.player_bets = {player: 0 for player in active_players}
         self.player_actions = {}
         self.all_in_players = still_all_in
+        self.player_action_times = {}
 
     def get_current_player(self) -> Set[int]:
         """Get the current player in the round"""
