@@ -261,14 +261,14 @@ class Game:
             raise ValueError("Round cannot end while players are still waiting to act")
         
         actions = {
-            p_id: get_poker_action_name_from_enum(action).upper() if action else "NO_ACTION"
+            p_id - 1: get_poker_action_name_from_enum(action).upper() if action else "NO_ACTION"
             for p_id, action in self.current_round.player_actions.items()
         }
 
         self.json_game_log['rounds'][self.round_index] = {
             "pot": self.current_round.pot,
             "bets": {p_id - 1: bet for p_id, bet in self.current_round.player_bets.items()},
-            "actions": {p_id - 1: action for p_id, action in actions.items()},
+            "actions": actions,
             "actionTimes": {p_id - 1: t for p_id, t in self.current_round.player_action_times.items()}
         }
 
@@ -414,6 +414,7 @@ class Game:
         try:
             game_id = self.json_game_log.get('gameId', f"unknown_{int(time.time())}")
             filename = f"game_log_{game_id}.json"
+            os.makedirs(BASE_PATH, exist_ok=True)
             filepath = os.path.join(BASE_PATH, filename)
 
             with open(filepath, 'w') as f:
