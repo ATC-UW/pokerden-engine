@@ -1,6 +1,7 @@
 from poker_type.game import PokerAction
 from typing import List, Dict, Set
 from dataclasses import dataclass
+from poker_type.utils import get_poker_action_name_from_enum
 
 @dataclass
 class Pot:
@@ -20,6 +21,7 @@ class RoundState:
         self.waiting_for: Set[int] = set(active_players)
         self.player_bets: Dict[int, int] = {player: 0 for player in active_players}
         self.player_actions: Dict[int, PokerAction] = {}
+        self.action_history: List[Dict] = []
         self.all_in_players: Set[int] = set()  # Track all-in players
         self.player_action_times: Dict[int, int] = {}
 
@@ -108,6 +110,8 @@ class RoundState:
 
         self.player_actions[player_id] = action
 
+        final_action_amount = amount
+
         if player_id not in self.waiting_for:
             raise ValueError("Player is not waiting for their turn")
 
@@ -130,6 +134,7 @@ class RoundState:
                 raise ValueError("Cannot call with less than the raise amount")
             self.player_bets[player_id] += call_amount
             self.waiting_for.discard(player_id)
+            final_action_amount = call_amount
             self.player_actions[player_id] = PokerAction.CALL
         elif action == PokerAction.ALL_IN:
             self.player_bets[player_id] += amount
@@ -151,6 +156,14 @@ class RoundState:
         
         # Update pots after any action that changes bet amounts
         self._update_pots()
+
+        relative_time = self.player_action_times.get(player_id, 0)
+        self.action_history.append({
+            "player_id": player_id,
+            "action": get_poker_action_name_from_enum(action).upper(),
+            "amount": final_action_amount,
+            "timestamp": relative_time,
+        })
 
     def _update_pots(self):
         """Update pot amounts based on current player bets"""

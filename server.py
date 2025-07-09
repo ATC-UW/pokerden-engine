@@ -4,6 +4,7 @@ import time
 from typing import Dict, Tuple
 import uuid
 import logging
+import json
 from config import (
     HOST,
     PORT,
@@ -80,7 +81,8 @@ class PokerEngineServer:
         self.running = True
         self.current_player_idx = 0
         self.game_count = 0
-        
+        self.simulation_logs = []
+
         # Dealer button management for continuous games
         self.dealer_button_position = 0
 
@@ -107,6 +109,22 @@ class PokerEngineServer:
         for conn in self.player_connections.values():
             conn.close()
         
+        if self.sim and self.simulation_logs:
+            try:
+                session_id = str(uuid.uuid4())
+                filename = f"simulation_log_{session_id}.json"
+                filepath = os.path.join("output", filename)
+                os.makedirs("output", exist_ok=True)
+
+                with open(filepath, 'w') as f:
+                    json.dump(self.simulation_logs, f, indent=2)
+                    logger.info(f"Aggregated simulation log written to {filepath}")
+                    print(f"Aggregated simulation log written to {filepath}")
+
+            except Exception as e:
+                logger.error(f"Error writing aggregated simulation log: {e}")
+                print(f"Error writing aggregated simulation log: {e}")
+
         # If this was a simulation, replace RUNNING with DONE
         if self.sim:
             self.replace_running_with_done()
@@ -194,7 +212,7 @@ class PokerEngineServer:
             self.current_player_idx = 0
 
     def run_continuous_games(self):
-        """Run multiple games with the same connections"""
+        """Run multiple games with the same connections, collect logs"""
         while self.running and len(self.player_connections) >= self.required_players:
             self.game_count += 1
             logger.info(f"=== Starting Game #{self.game_count} ===")
@@ -296,8 +314,12 @@ class PokerEngineServer:
             while self.running and self.game_in_progress:
                 if self.game.is_current_round_complete() and self.game.is_game_over():
                     self.broadcast_text(f"Game #{self.game_count} over!")
+                    game_log_data = self.game.end_game()
                     score = self.game.get_final_score()
                     
+                    if self.sim:
+                        self.simulation_logs.append(game_log_data)
+
                     # Update player money based on game results
                     self.update_player_money_after_game(score)
                     

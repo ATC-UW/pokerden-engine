@@ -225,10 +225,9 @@ class Game:
                 action_type, amount = PokerAction.ALL_IN, 0
 
         # Update round state
-        self.current_round.update_player_action(player_id, action_type, amount)
-
         relative_time = int(time.time() * 1000) - self.game_start_time
         self.current_round.player_action_times[player_id] = relative_time
+        self.current_round.update_player_action(player_id, action_type, amount)
         
         # Remove player from active players if they folded
         if action_type == PokerAction.FOLD:
@@ -260,16 +259,18 @@ class Game:
         if not self.current_round.is_round_complete():
             raise ValueError("Round cannot end while players are still waiting to act")
         
-        actions = {
-            p_id - 1: get_poker_action_name_from_enum(action).upper() if action else "NO_ACTION"
-            for p_id, action in self.current_round.player_actions.items()
-        }
+        logged_actions = [{
+            "player": entry["player_id"] - 1,
+            "action": entry["action"],
+            "amount": entry["amount"],
+            "timestamp": entry["timestamp"]
+            } for entry in self.current_round.action_history
+        ]
 
         self.json_game_log['rounds'][self.round_index] = {
             "pot": self.current_round.pot,
             "bets": {p_id - 1: bet for p_id, bet in self.current_round.player_bets.items()},
-            "actions": actions,
-            "actionTimes": {p_id - 1: t for p_id, t in self.current_round.player_action_times.items()}
+            "actions": logged_actions
         }
 
         self.historical_pots.append(self.current_round.pot)
@@ -411,19 +412,21 @@ class Game:
                 for pot in side_pots_info
             ]
 
-        try:
-            game_id = self.json_game_log.get('gameId', f"unknown_{int(time.time())}")
-            filename = f"game_log_{game_id}.json"
-            os.makedirs(BASE_PATH, exist_ok=True)
-            filepath = os.path.join(BASE_PATH, filename)
+        return self.json_game_log
 
-            with open(filepath, 'w') as f:
-                json.dump(self.json_game_log, f, indent = 2)
+        # try:
+        #     game_id = self.json_game_log.get('gameId', f"unknown_{int(time.time())}")
+        #     filename = f"game_log_{game_id}.json"
+        #     os.makedirs(BASE_PATH, exist_ok=True)
+        #     filepath = os.path.join(BASE_PATH, filename)
 
-            if self.debug:
-                print(f"Game log successfully written to {filepath}")
-        except Exception as e:
-            print(f"Error writing game log to JSON: {e}")
+        #     with open(filepath, 'w') as f:
+        #         json.dump(self.json_game_log, f, indent = 2)
+
+        #     if self.debug:
+        #         print(f"Game log successfully written to {filepath}")
+        # except Exception as e:
+        #     print(f"Error writing game log to JSON: {e}")
 
     def get_final_score(self):
         return self.score
