@@ -7,6 +7,11 @@ from game.round_state import RoundState
 from poker_type.game import PokerRound, PokerAction
 from poker_type.messsage import GameStateMessage
 from poker_type.utils import get_poker_action_name_from_enum, get_round_name
+from config import BASE_PATH
+import time
+import os
+import json
+import uuid
 
 GAME_ROUNDS = [PokerRound.PREFLOP, PokerRound.FLOP, PokerRound.TURN, PokerRound.RIVER]
 
@@ -26,12 +31,22 @@ class Game:
         self.current_round: RoundState = None
         self.score = {}
         self.is_running = False
+        self.game_start_time = 0
         
         # Blind functionality
         self.blind_amount = blind_amount
         self.small_blind_player = None
         self.big_blind_player = None
         self.dealer_button_position = 0  # This will be set by the server
+
+        self.json_game_log = {
+            "rounds": {},
+            "playerNames": {},
+            "playerHands": {},
+            "finalBoard": [],
+            "blinds": {},
+            "sidePots": [],
+        }
 
     def set_blind_amount(self, amount: int):
         """Set the blind amount for the game"""
@@ -153,10 +168,20 @@ class Game:
         return self.current_round.is_round_complete()
 
     def start_game(self):
+        self.game_start_time = int(time.time() * 1000)
         self.deck = PokerDeck()
         self.deck.shuffle()
         self.round_index = 0
         self.is_running = True
+
+        self.json_game_log = {
+            "gameId": str(uuid.uuid4()),
+            "rounds": {},
+            "playerNames": {},
+            "blinds": {},
+            "finalBoard": [],
+            "sidePots": []
+        }
 
         # Deal two cards to each player
         for player in self.active_players:
@@ -173,6 +198,15 @@ class Game:
         # Assign blinds for this game
         self.assign_blinds()
         
+        self.json_game_log['playerNames'] = {p_id - 1: f"player{p_id}" for p_id in self.players}
+
+        self.json_game_log['playerHands'] = {p_id - 1: [str(card) for card in hand] for p_id, hand in self.hands.items()}
+
+        self.json_game_log['blinds'] = {
+            "small": self.blind_amount // 2,
+            "big": self.blind_amount
+        }
+
         # Initialize the first round
         self.current_round = RoundState(self.active_players)
         
@@ -192,6 +226,9 @@ class Game:
 
         # Update round state
         self.current_round.update_player_action(player_id, action_type, amount)
+
+        relative_time = int(time.time() * 1000) - self.game_start_time
+        self.current_round.player_action_times[player_id] = relative_time
         
         # Remove player from active players if they folded
         if action_type == PokerAction.FOLD:
@@ -215,12 +252,26 @@ class Game:
             self.deck.deal(1)  # Burn a card
             new_card = self.deck.deal(1)[0]  # Deal one new board card
             self.board.append(new_card)
+
+        self.json_game_log['finalBoard'] = [str(card) for card in self.board]
         
 
     def end_round(self):
         if not self.current_round.is_round_complete():
             raise ValueError("Round cannot end while players are still waiting to act")
         
+        actions = {
+            p_id - 1: get_poker_action_name_from_enum(action).upper() if action else "NO_ACTION"
+            for p_id, action in self.current_round.player_actions.items()
+        }
+
+        self.json_game_log['rounds'][self.round_index] = {
+            "pot": self.current_round.pot,
+            "bets": {p_id - 1: bet for p_id, bet in self.current_round.player_bets.items()},
+            "actions": actions,
+            "actionTimes": {p_id - 1: t for p_id, t in self.current_round.player_action_times.items()}
+        }
+
         self.historical_pots.append(self.current_round.pot)
         self.total_pot += self.current_round.pot
         self.player_history[self.round_index] =  {
@@ -349,6 +400,30 @@ class Game:
 
         self.is_running = False
         # Blind rotation is now handled by the server
+
+        if self.current_round and hasattr(self.current_round, 'get_side_pots_info'):
+            side_pots_info = self.current_round.get_side_pots_info()
+            self.json_game_log['sidePots'] = [
+                {
+                    "amount": pot["amount"],
+                    "eligible_players": [p - 1 for p in pot["eligible_players"]]
+                }
+                for pot in side_pots_info
+            ]
+
+        try:
+            game_id = self.json_game_log.get('gameId', f"unknown_{int(time.time())}")
+            filename = f"game_log_{game_id}.json"
+            os.makedirs(BASE_PATH, exist_ok=True)
+            filepath = os.path.join(BASE_PATH, filename)
+
+            with open(filepath, 'w') as f:
+                json.dump(self.json_game_log, f, indent = 2)
+
+            if self.debug:
+                print(f"Game log successfully written to {filepath}")
+        except Exception as e:
+            print(f"Error writing game log to JSON: {e}")
 
     def get_final_score(self):
         return self.score
