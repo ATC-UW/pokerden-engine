@@ -69,7 +69,10 @@ class PokerEngineServer:
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        self.game = Game(self.debug, self.blind_amount)
+        # Generate one game ID for the entire simulation sequence
+        self.simulation_game_id = str(uuid.uuid4()) if self.sim else None
+        
+        self.game = Game(self.debug, self.blind_amount, 0, self.simulation_game_id)  # Initial game with sequence 0
         self.player_connections: Dict[int, socket.socket] = {}
         self.player_addresses: Dict[int, Tuple[str, int]] = {}
         self.player_money: Dict[int, int] = {}  # Track player money between games
@@ -180,8 +183,8 @@ class PokerEngineServer:
             # Update blind amount if needed
             self.update_blind_amount()
             
-            # Create a new game instance with the current blind amount
-            self.game = Game(self.debug, self.blind_amount)
+            # Create a new game instance with the current blind amount, game sequence, and shared game ID
+            self.game = Game(self.debug, self.blind_amount, self.game_count, self.simulation_game_id)
             
             # Set the current dealer button position
             self.game.set_dealer_button_position(self.dealer_button_position)
