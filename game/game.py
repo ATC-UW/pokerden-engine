@@ -16,7 +16,7 @@ import uuid
 GAME_ROUNDS = [PokerRound.PREFLOP, PokerRound.FLOP, PokerRound.TURN, PokerRound.RIVER]
 
 class Game:
-    def __init__(self, debug: bool = False, blind_amount: int = 10):
+    def __init__(self, debug: bool = False, blind_amount: int = 10, game_sequence: int = None, game_id: str = None):
         self.debug = debug
         self.nums_round = NUM_ROUNDS
         self.players: List[int] = []
@@ -32,6 +32,8 @@ class Game:
         self.score = {}
         self.is_running = False
         self.game_start_time = 0
+        self.game_sequence = game_sequence  # Store the game sequence number
+        self.simulation_game_id = game_id  # Store the shared game ID for simulation
         
         # Blind functionality
         self.blind_amount = blind_amount
@@ -174,8 +176,11 @@ class Game:
         self.round_index = 0
         self.is_running = True
 
+        # Use shared simulation game ID if provided, otherwise generate new one
+        game_id = self.simulation_game_id if self.simulation_game_id else str(uuid.uuid4())
+        
         self.json_game_log = {
-            "gameId": str(uuid.uuid4()),
+            "gameId": game_id,
             "rounds": {},
             "playerNames": {},
             "blinds": {},
@@ -413,7 +418,13 @@ class Game:
 
         try:
             game_id = self.json_game_log.get('gameId', f"unknown_{int(time.time())}")
-            filename = f"game_log_{game_id}.json"
+            
+            # Include game sequence number in filename if available
+            if self.game_sequence is not None:
+                filename = f"game_log_{self.game_sequence}_{game_id}.json"
+            else:
+                filename = f"game_log_{game_id}.json"
+                
             os.makedirs(BASE_PATH, exist_ok=True)
             filepath = os.path.join(BASE_PATH, filename)
 

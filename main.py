@@ -1,8 +1,30 @@
 import argparse
 import logging
 import os
+import glob
 from server import PokerEngineServer
-from config import NUM_ROUNDS, OUTPUT_FILE_SIMULATION, OUTPUT_GAME_RESULT_FILE
+from config import NUM_ROUNDS, OUTPUT_FILE_SIMULATION, OUTPUT_GAME_RESULT_FILE, BASE_PATH
+
+def cleanup_game_logs():
+    """Remove all existing game_log files before starting a new run"""
+    try:
+        # Find all game_log*.json files in the BASE_PATH directory
+        game_log_pattern = os.path.join(BASE_PATH, "game_log_*.json")
+        game_log_files = glob.glob(game_log_pattern)
+        
+        if game_log_files:
+            print(f"Cleaning up {len(game_log_files)} existing game log files...")
+            for file_path in game_log_files:
+                try:
+                    os.remove(file_path)
+                    print(f"Removed: {os.path.basename(file_path)}")
+                except OSError as e:
+                    print(f"Warning: Could not remove {file_path}: {e}")
+        else:
+            print("No existing game log files to clean up.")
+            
+    except Exception as e:
+        print(f"Warning: Error during game log cleanup: {e}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Poker Engine Server')
@@ -18,6 +40,9 @@ if __name__ == "__main__":
     parser.add_argument('--blind-multiplier', type=float, default=1.0, help='Factor to multiply blind amount by (default: 1.0 = no increase)')
     parser.add_argument('--blind-increase-interval', type=int, default=0, help='Number of games after which to increase blinds (default: 0 = never increase)')
     args = parser.parse_args()
+
+    # Clean up existing game log files before starting
+    cleanup_game_logs()
 
     # Configure logging
     log_level = logging.DEBUG if args.debug else logging.INFO
