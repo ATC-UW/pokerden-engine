@@ -229,6 +229,32 @@ class Game:
                     print(f"Player {player_id} is all in from previous round")
                 action_type, amount = PokerAction.ALL_IN, 0
 
+        # Calculate cumulative pot information from all previous rounds
+        cumulative_pot = 0
+        cumulative_side_pots = []
+        side_pot_id_counter = 0
+        
+        # Add historical pots from completed rounds
+        for round_idx in self.player_history:
+            round_history = self.player_history[round_idx]
+            # Add the total pot amount for this round (just once per round)
+            cumulative_pot += round_history["pot"]
+            
+            # For side pots, use the final state of the round if available
+            if "action_sequence" in round_history and round_history["action_sequence"]:
+                final_action = round_history["action_sequence"][-1]
+                # Add side pots with unique IDs from the final action of the round
+                for side_pot in final_action["side_pots_after_action"]:
+                    cumulative_side_pots.append({
+                        "id": side_pot_id_counter,
+                        "amount": side_pot["amount"],
+                        "eligible_players": side_pot["eligible_players"]
+                    })
+                    side_pot_id_counter += 1
+
+        # Update round state with cumulative information
+        self.current_round.set_cumulative_pot_info(cumulative_pot, cumulative_side_pots)
+        
         # Update round state
         self.current_round.update_player_action(player_id, action_type, amount)
 
@@ -265,6 +291,23 @@ class Game:
         if not self.current_round.is_round_complete():
             raise ValueError("Round cannot end while players are still waiting to act")
         
+        # Convert action history to the new format
+        action_sequence = []
+        for action_record in self.current_round.action_history:
+            action_sequence.append({
+                "player": action_record.player_id - 1,  # Convert to 0-based indexing for JSON
+                "action": get_poker_action_name_from_enum(action_record.action).upper(),
+                "amount": action_record.amount,
+                "timestamp": action_record.timestamp,
+                # Round-specific pot information
+                "pot_after_action": action_record.pot_after_action,
+                "side_pots_after_action": action_record.side_pots_after_action,
+                # Cumulative pot information across all rounds
+                "total_pot_after_action": action_record.total_pot_after_action,
+                "total_side_pots_after_action": action_record.total_side_pots_after_action
+            })
+
+        # Keep backward compatibility with old format for now
         actions = {
             p_id - 1: get_poker_action_name_from_enum(action).upper() if action else "NO_ACTION"
             for p_id, action in self.current_round.player_actions.items()
@@ -273,7 +316,8 @@ class Game:
         self.json_game_log['rounds'][self.round_index] = {
             "pot": self.current_round.pot,
             "bets": {p_id - 1: bet for p_id, bet in self.current_round.player_bets.items()},
-            "actions": actions,
+            "actions": actions,  # Keep old format for backward compatibility
+            "action_sequence": action_sequence,  # New detailed action sequence
             "actionTimes": {p_id - 1: t for p_id, t in self.current_round.player_action_times.items()}
         }
 
@@ -282,7 +326,8 @@ class Game:
         self.player_history[self.round_index] =  {
             "pot": self.current_round.pot,
             "player_bets": self.current_round.player_bets,
-            "player_actions": self.current_round.player_actions
+            "player_actions": self.current_round.player_actions,
+            "action_sequence": action_sequence  # Store new format in history too
         }
 
     def end_game(self):
