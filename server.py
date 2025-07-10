@@ -297,8 +297,17 @@ class PokerEngineServer:
 
         try:
             while self.running and self.game_in_progress:
-                if self.game.is_current_round_complete() and self.game.is_game_over():
+                # new game with one player left -> end game
+                # round complete and game over -> end game
+                if len(self.game.active_players) == 1 or (self.game.is_current_round_complete() and self.game.is_game_over()):
                     self.broadcast_text(f"Game #{self.game_count} over!")
+                    
+                    # CRITICAL: Call end_game() to calculate scores and write logs
+                    if self.game.is_running:
+                        logger.info("Calling end_game() for proper scoring and logging")
+                        print("Calling end_game() for proper scoring and logging")
+                        self.game.end_game()
+                    
                     score = self.game.get_final_score()
                     
                     # Update player money based on game results
