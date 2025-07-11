@@ -242,6 +242,11 @@ class PokerEngineServer:
         
         self.broadcast_text(f"Game #{self.game_count} starting!")
 
+        for(player_id, conn) in self.player_connections.items():
+            connect_message = CONNECT(player_id)
+            self.send_message(player_id, str(connect_message))
+            self.send_text_message(player_id, f"Welcome to Game #{self.game_count}! Your ID is {player_id}")
+
         self.game.start_game()
         # broadcast message with hands to each player
         all_player_ids = list(self.player_connections.keys())
@@ -289,11 +294,6 @@ class PokerEngineServer:
         self.broadcast_message(round_start_message)
 
         waiting_for = self.game.get_current_waiting_for()
-
-        for(player_id, conn) in self.player_connections.items():
-            connect_message = CONNECT(player_id)
-            self.send_message(player_id, str(connect_message))
-            self.send_text_message(player_id, f"Welcome to Game #{self.game_count}! Your ID is {player_id}")
 
         try:
             while self.running and self.game_in_progress:
