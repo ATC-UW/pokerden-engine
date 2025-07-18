@@ -510,3 +510,64 @@ class Game:
             max_raise=self.current_round.raise_amount * 2,
             side_pots=side_pots_info
         )
+
+    def get_positional_order(self, players_to_order: List[int]) -> List[int]:
+        """
+        Get players in positional order for post-flop betting rounds.
+        Action starts with the first active player to the left of the dealer button.
+        """
+        if not players_to_order:
+            return []
+        
+        # For post-flop rounds, find the first active player to the left of the dealer button
+        # In multi-player games, this is typically the small blind position
+        # In heads-up, this is the big blind position
+        
+        # Get all players in their seated order
+        all_players = self.players.copy()
+        num_players = len(all_players)
+        
+        if num_players < 2:
+            return players_to_order
+        
+        # Find the starting position for post-flop action
+        if num_players == 2:
+            # Heads-up: big blind acts first post-flop
+            start_pos = (self.dealer_button_position + 1) % num_players
+        else:
+            # Multi-player: small blind acts first post-flop (to the left of dealer)
+            start_pos = (self.dealer_button_position + 1) % num_players
+        
+        # Create ordered list starting from the correct position
+        ordered_players = []
+        for i in range(num_players):
+            player_pos = (start_pos + i) % num_players
+            player_id = all_players[player_pos]
+            if player_id in players_to_order:
+                ordered_players.append(player_id)
+        
+        return ordered_players
+
+    def get_preflop_order(self, players_to_order: List[int]) -> List[int]:
+        """
+        Get players in order for preflop betting (small blind first, then big blind, then others).
+        """
+        if not players_to_order:
+            return []
+        
+        ordered_players = []
+        
+        # Add small blind first if waiting
+        if self.small_blind_player and self.small_blind_player in players_to_order:
+            ordered_players.append(self.small_blind_player)
+        
+        # Add big blind second if waiting
+        if self.big_blind_player and self.big_blind_player in players_to_order:
+            ordered_players.append(self.big_blind_player)
+        
+        # Add remaining players in positional order
+        for player in players_to_order:
+            if player not in [self.small_blind_player, self.big_blind_player]:
+                ordered_players.append(player)
+        
+        return ordered_players
