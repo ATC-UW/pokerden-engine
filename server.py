@@ -193,6 +193,13 @@ class PokerEngineServer:
             for player_id in self.player_connections.keys():
                 self.game.add_player(player_id)
             
+            # Pass player money information to the game
+            self.game.set_player_money_info(
+                self.player_money.copy(),
+                self.player_delta.copy(),
+                self.initial_money
+            )
+            
             self.game_in_progress = False
             self.current_player_idx = 0
 
@@ -312,6 +319,12 @@ class PokerEngineServer:
                     
                     # Update player money based on game results
                     self.update_player_money_after_game(score)
+                    
+                    # Update the game with final money information for logging
+                    self.game.update_final_money_after_game(score, self.player_money.copy(), self.player_delta.copy())
+                    
+                    # Re-write the game log with updated money information
+                    self.game.end_game()
                     
                     for player_id in score.keys():
                         # get active players hands information

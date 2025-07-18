@@ -40,6 +40,12 @@ class Game:
         self.small_blind_player = None
         self.big_blind_player = None
         self.dealer_button_position = 0  # This will be set by the server
+        
+        # Player money tracking
+        self.player_starting_money: Dict[int, int] = {}  # Starting money for each player
+        self.player_final_money: Dict[int, int] = {}     # Final money for each player
+        self.player_delta: Dict[int, int] = {}           # Delta/gain for each player
+        self.initial_money: int = 0                      # Initial money amount
 
         self.json_game_log = {
             "rounds": {},
@@ -188,6 +194,14 @@ class Game:
             "finalBoard": [],
             "sidePots": []
         }
+        
+        # Add player money information if available
+        if self.player_starting_money or self.player_delta:
+            self.json_game_log["playerMoney"] = {
+                "initialAmount": self.initial_money,
+                "startingMoney": {str(p_id): money for p_id, money in self.player_starting_money.items()},
+                "startingDelta": {str(p_id): delta for p_id, delta in self.player_delta.items()}
+            }
 
         # Deal two cards to each player
         for player in self.active_players:
@@ -462,6 +476,20 @@ class Game:
                 for pot in side_pots_info
             ]
 
+        # Add final money and delta information to the game log
+        if 'playerMoney' not in self.json_game_log:
+            self.json_game_log['playerMoney'] = {}
+        
+        self.json_game_log['playerMoney']['finalMoney'] = {str(p_id): money for p_id, money in self.player_final_money.items()}
+        self.json_game_log['playerMoney']['finalDelta'] = {str(p_id): delta for p_id, delta in self.player_delta.items()}
+        self.json_game_log['playerMoney']['gameScores'] = {str(p_id): score for p_id, score in self.score.items()}
+        
+        # Calculate net gain/loss for this game for each player
+        game_deltas = {}
+        for player_id in self.score:
+            game_deltas[str(player_id)] = self.score[player_id]
+        self.json_game_log['playerMoney']['thisGameDelta'] = game_deltas
+
         try:
             game_id = self.json_game_log.get('gameId', f"unknown_{int(time.time())}")
             
@@ -571,3 +599,19 @@ class Game:
                 ordered_players.append(player)
         
         return ordered_players
+
+    def set_player_money_info(self, player_starting_money: Dict[int, int], player_delta: Dict[int, int], initial_money: int):
+        """Set player money information from the server"""
+        self.player_starting_money = player_starting_money.copy()
+        self.player_delta = player_delta.copy()
+        self.initial_money = initial_money
+        
+        # Calculate final money for each player
+        for player_id in self.players:
+            if player_id in player_starting_money:
+                self.player_final_money[player_id] = player_starting_money[player_id]
+
+    def update_final_money_after_game(self, game_scores: Dict[int, int], updated_player_money: Dict[int, int], updated_player_delta: Dict[int, int]):
+        """Update final money and delta information after game ends"""
+        self.player_final_money = updated_player_money.copy()
+        self.player_delta = updated_player_delta.copy()
