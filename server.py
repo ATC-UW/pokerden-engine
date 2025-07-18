@@ -337,29 +337,22 @@ class PokerEngineServer:
                 while not self.game.is_current_round_complete():
                     waiting_for = self.game.get_current_waiting_for()
                     length = len(waiting_for)
-                    queue = list(waiting_for)
                     if length == 0:
                         break
 
                     logger.debug(f"Current player in game: {waiting_for}")
                     
-                    # For the first round, prioritize blind players
+                    # Get players in proper positional order
+                    players_list = list(waiting_for)
                     if self.game.round_index == 0:
-                        # Sort queue to have small blind first, then big blind
-                        small_blind = self.game.get_small_blind_player()
-                        big_blind = self.game.get_big_blind_player()
-                        
-                        if small_blind in waiting_for and big_blind in waiting_for:
-                            # Arrange so small blind goes first, then big blind
-                            queue = []
-                            if small_blind in waiting_for:
-                                queue.append(small_blind)
-                            if big_blind in waiting_for:
-                                queue.append(big_blind)
-                            # Add other players
-                            for player in waiting_for:
-                                if player not in [small_blind, big_blind]:
-                                    queue.append(player)
+                        # Preflop: small blind first, then big blind, then others
+                        queue = self.game.get_preflop_order(players_list)
+                    else:
+                        # Post-flop: positional order starting from small blind position
+                        queue = self.game.get_positional_order(players_list)
+                    
+                    logger.debug(f"Action order: {queue}")
+                    print(f"Action order: {queue}")
                     
                     start_player_idx = 0
                     length = len(queue)
