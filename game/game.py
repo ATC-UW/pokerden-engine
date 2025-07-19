@@ -578,25 +578,37 @@ class Game:
 
     def get_preflop_order(self, players_to_order: List[int]) -> List[int]:
         """
-        Get players in order for preflop betting (small blind first, then big blind, then others).
+        Get players in order for preflop betting.
+        Pre-flop order: Player to the left of big blind acts first (Under the Gun),
+        then continue clockwise, with small blind second-to-last and big blind last.
         """
         if not players_to_order:
             return []
         
+        # Get all players in their seated order
+        all_players = self.players.copy()
+        num_players = len(all_players)
+        
+        if num_players < 2:
+            return players_to_order
+        
+        # Find the starting position for pre-flop action (to the left of big blind)
+        if num_players == 2:
+            # Heads-up: small blind (dealer) acts first pre-flop
+            start_pos = self.dealer_button_position % num_players
+        else:
+            # Multi-player: player to the left of big blind acts first (UTG)
+            # Big blind is at position (dealer_button_position + 2) % num_players
+            # So UTG is at position (dealer_button_position + 3) % num_players  
+            start_pos = (self.dealer_button_position + 3) % num_players
+        
+        # Create ordered list starting from UTG position
         ordered_players = []
-        
-        # Add small blind first if waiting
-        if self.small_blind_player and self.small_blind_player in players_to_order:
-            ordered_players.append(self.small_blind_player)
-        
-        # Add big blind second if waiting
-        if self.big_blind_player and self.big_blind_player in players_to_order:
-            ordered_players.append(self.big_blind_player)
-        
-        # Add remaining players in positional order
-        for player in players_to_order:
-            if player not in [self.small_blind_player, self.big_blind_player]:
-                ordered_players.append(player)
+        for i in range(num_players):
+            player_pos = (start_pos + i) % num_players
+            player_id = all_players[player_pos]
+            if player_id in players_to_order:
+                ordered_players.append(player_id)
         
         return ordered_players
 

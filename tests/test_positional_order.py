@@ -26,16 +26,21 @@ class TestPositionalOrder(unittest.TestCase):
         self.game.set_dealer_button_position(2)
         self.game.assign_blinds()
         
-        # Expected: small blind (position 3), big blind (position 4), then others
+        # Expected: UTG (player after big blind) acts first, then clockwise, SB second-to-last, BB last
         preflop_order = self.game.get_preflop_order(self.players_6)
         
-        # Verify small blind is first
-        self.assertEqual(preflop_order[0], self.game.small_blind_player,
-                        "Small blind should act first in preflop")
+        # UTG should be the player after big blind (position 5 in this case)
+        expected_utg = self.players_6[5]  # Position after big blind (position 4)
+        self.assertEqual(preflop_order[0], expected_utg,
+                        "UTG (player after big blind) should act first in preflop")
         
-        # Verify big blind is second
-        self.assertEqual(preflop_order[1], self.game.big_blind_player,
-                        "Big blind should act second in preflop")
+        # Small blind should be second-to-last
+        self.assertEqual(preflop_order[-2], self.game.small_blind_player,
+                        "Small blind should act second-to-last in preflop")
+        
+        # Big blind should be last
+        self.assertEqual(preflop_order[-1], self.game.big_blind_player,
+                        "Big blind should act last in preflop")
         
         # Verify all players are included
         self.assertEqual(len(preflop_order), 6, "All 6 players should be in preflop order")
@@ -77,7 +82,7 @@ class TestPositionalOrder(unittest.TestCase):
         self.game.assign_blinds()
         
         # In heads-up: dealer is small blind, non-dealer is big blind
-        # Preflop: small blind acts first
+        # Preflop: small blind (dealer) acts first
         preflop_order = self.game.get_preflop_order(players_2)
         self.assertEqual(preflop_order[0], self.game.small_blind_player,
                         "Small blind should act first in heads-up preflop")
@@ -100,9 +105,9 @@ class TestPositionalOrder(unittest.TestCase):
             
             postflop_order = self.game.get_positional_order(self.players_6)
             
-            # Verify small blind acts first
+            # Verify small blind acts first in post-flop
             self.assertEqual(postflop_order[0], self.game.small_blind_player,
-                            f"Small blind should act first with dealer at position {dealer_pos}")
+                            f"Small blind should act first post-flop with dealer at position {dealer_pos}")
             
             # Verify order is positional (clockwise from small blind)
             small_blind_index = self.players_6.index(self.game.small_blind_player)
@@ -210,6 +215,30 @@ class TestPositionalOrder(unittest.TestCase):
             expected_bb = self.players_6[(dealer_pos + 2) % 6]
             self.assertEqual(self.game.big_blind_player, expected_bb,
                             f"Big blind incorrect for dealer position {dealer_pos}")
+
+    def test_preflop_utg_first(self):
+        """Test that UTG (Under the Gun) acts first in preflop betting"""
+        # Add players
+        for player_id in self.players_6:
+            self.game.add_player(player_id)
+        
+        # Test different dealer positions
+        for dealer_pos in range(6):
+            self.game.set_dealer_button_position(dealer_pos)
+            self.game.assign_blinds()
+            
+            preflop_order = self.game.get_preflop_order(self.players_6)
+            
+            # UTG should be the player after big blind
+            big_blind_index = self.players_6.index(self.game.big_blind_player)
+            expected_utg = self.players_6[(big_blind_index + 1) % 6]
+            
+            self.assertEqual(preflop_order[0], expected_utg,
+                            f"UTG should act first in preflop with dealer at position {dealer_pos}")
+            
+            # Big blind should act last
+            self.assertEqual(preflop_order[-1], self.game.big_blind_player,
+                            f"Big blind should act last in preflop with dealer at position {dealer_pos}")
 
 if __name__ == '__main__':
     unittest.main(verbosity=2) 
