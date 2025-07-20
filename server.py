@@ -520,20 +520,40 @@ class PokerEngineServer:
         if action_type != 1 and action_type != 2:  # Not fold and not check
             current_money = self.player_money.get(player_id, 0)
             current_delta = self.player_delta.get(player_id, 0)
-            if action_amount > current_money:
-                logger.warning(f"Player {player_id} doesn't have enough money for action: needs {action_amount}, has {current_money} (delta: {current_delta})")
-                print(f"Player {player_id} doesn't have enough money for action: needs {action_amount}, has {current_money} (delta: {current_delta})")
+            
+            # For CALL actions, calculate the actual amount needed
+            if action_type == 3:  # CALL
+                # Get the actual call amount from the game state
+                current_bet = self.game.current_round.raise_amount
+                player_bet = self.game.current_round.player_bets.get(player_id, 0)
+                actual_call_amount = current_bet - player_bet
                 
-                # If it's an all-in action, allow it with the amount they have
-                if action_type == 5:  # All-in
-                    action_tuple = (get_poker_action_enum_from_index(action_type), current_money)
-                    logger.info(f"Adjusting all-in amount to {current_money}")
-                else:
-                    # For other actions, force them to fold
-                    logger.info(f"Forcing player {player_id} to fold due to insufficient money")
-                    print(f"Forcing player {player_id} to fold due to insufficient money")
+                if actual_call_amount > current_money:
+                    logger.warning(f"Player {player_id} doesn't have enough money for call: needs {actual_call_amount}, has {current_money} (delta: {current_delta})")
+                    print(f"Player {player_id} doesn't have enough money for call: needs {actual_call_amount}, has {current_money} (delta: {current_delta})")
+                    
+                    # Force them to fold due to insufficient money for call
+                    logger.info(f"Forcing player {player_id} to fold due to insufficient money for call")
+                    print(f"Forcing player {player_id} to fold due to insufficient money for call")
                     action_tuple = (PokerAction.FOLD, 0)
                     self.broadcast_text(f"Player {player_id} automatically folded due to insufficient money")
+                    
+            else:
+                # For other actions (RAISE, ALL_IN), check the amount sent by client
+                if action_amount > current_money:
+                    logger.warning(f"Player {player_id} doesn't have enough money for action: needs {action_amount}, has {current_money} (delta: {current_delta})")
+                    print(f"Player {player_id} doesn't have enough money for action: needs {action_amount}, has {current_money} (delta: {current_delta})")
+                    
+                    # If it's an all-in action, allow it with the amount they have
+                    if action_type == 5:  # All-in
+                        action_tuple = (get_poker_action_enum_from_index(action_type), current_money)
+                        logger.info(f"Adjusting all-in amount to {current_money}")
+                    else:
+                        # For other actions, force them to fold
+                        logger.info(f"Forcing player {player_id} to fold due to insufficient money")
+                        print(f"Forcing player {player_id} to fold due to insufficient money")
+                        action_tuple = (PokerAction.FOLD, 0)
+                        self.broadcast_text(f"Player {player_id} automatically folded due to insufficient money")
         
         try:
             self.game.update_game(player_id, action_tuple)
