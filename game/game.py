@@ -579,8 +579,8 @@ class Game:
     def get_preflop_order(self, players_to_order: List[int]) -> List[int]:
         """
         Get players in order for preflop betting.
-        Pre-flop order: Player to the left of big blind acts first (Under the Gun),
-        then continue clockwise, with small blind second-to-last and big blind last.
+        Pre-flop order: Small blind acts first, then continue clockwise,
+        with big blind acting last.
         """
         if not players_to_order:
             return []
@@ -592,17 +592,16 @@ class Game:
         if num_players < 2:
             return players_to_order
         
-        # Find the starting position for pre-flop action (to the left of big blind)
+        # Find the starting position for pre-flop action (small blind position)
         if num_players == 2:
             # Heads-up: small blind (dealer) acts first pre-flop
             start_pos = self.dealer_button_position % num_players
         else:
-            # Multi-player: player to the left of big blind acts first (UTG)
-            # Big blind is at position (dealer_button_position + 2) % num_players
-            # So UTG is at position (dealer_button_position + 3) % num_players  
-            start_pos = (self.dealer_button_position + 3) % num_players
+            # Multi-player: small blind acts first pre-flop
+            # Small blind is at position (dealer_button_position + 1) % num_players
+            start_pos = (self.dealer_button_position + 1) % num_players
         
-        # Create ordered list starting from UTG position
+        # Create ordered list starting from small blind position
         ordered_players = []
         for i in range(num_players):
             player_pos = (start_pos + i) % num_players
