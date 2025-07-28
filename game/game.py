@@ -363,30 +363,8 @@ class Game:
         if self.debug:
             print(f"Total pot amount calculated from all rounds: {total_pot_amount}")
         
-        # Use side pots from current round if they exist, but update their amounts to reflect the total
-        if (self.current_round and hasattr(self.current_round, 'pots') and 
-            self.current_round.pots and len(self.current_round.pots) > 1):
-            # Multiple pots exist (side pot scenario) - preserve the structure but fix amounts
-            if self.debug:
-                print(f"Using side pot structure with {len(self.current_round.pots)} pots")
-            
-            # Force recalculation to ensure correct amounts
-            # Temporarily restore current round bets to calculate side pots correctly
-            total_current_bets = sum(self.current_round.player_bets.values())
-            if total_current_bets == 0:
-                # Current round has no bets, use the last round that had bets
-                for round_idx in reversed(list(self.player_history.keys())):
-                    if sum(self.player_history[round_idx]["player_bets"].values()) > 0:
-                        self.current_round.player_bets = self.player_history[round_idx]["player_bets"]
-                        break
-            
-            self.current_round._create_side_pots()
-            final_pots = self.current_round.pots
-        else:
-            # Single pot scenario
-            if self.debug:
-                print("Using single pot for all players")
-            final_pots = [type('Pot', (), {'amount': total_pot_amount, 'eligible_players': set(self.active_players)})()]
+        # Calculate cumulative side pots that respect all-in limits
+        final_pots = self._calculate_cumulative_side_pots()
         
         # Evaluate hands for all active players
         hand_values = {}
@@ -484,12 +462,78 @@ class Game:
         self.json_game_log['playerMoney']['finalDelta'] = {str(p_id): delta for p_id, delta in self.player_delta.items()}
         self.json_game_log['playerMoney']['gameScores'] = {str(p_id): score for p_id, score in self.score.items()}
         
-        # Calculate net gain/loss for this game for each player
+        # Calculate game deltas (difference between final and starting money)
         game_deltas = {}
         for player_id in self.score:
             game_deltas[str(player_id)] = self.score[player_id]
+        
         self.json_game_log['playerMoney']['thisGameDelta'] = game_deltas
+        
+        # Write game log to file
+        self._write_game_log_to_file()
 
+    def _calculate_cumulative_side_pots(self):
+        """Calculate cumulative side pots that respect all-in limits from the first round"""
+        # Get all active players (not folded)
+        active_players = set()
+        for player_id, action in self.current_round.player_actions.items():
+            if action != PokerAction.FOLD:
+                active_players.add(player_id)
+        
+        if len(active_players) <= 1:
+            # Single active player or none
+            total_pot = sum(sum(round_bets.values()) for round_bets in 
+                           [self.player_history[round_idx]["player_bets"] for round_idx in self.player_history])
+            if len(active_players) == 1:
+                return [type('Pot', (), {'amount': total_pot, 'eligible_players': active_players})()]
+            else:
+                return [type('Pot', (), {'amount': total_pot, 'eligible_players': set()})()]
+        
+        # Calculate cumulative bet amounts for each player
+        cumulative_bets = {}
+        for player in self.players:
+            cumulative_bets[player] = 0
+            for round_index in self.player_history:
+                if player in self.player_history[round_index]["player_bets"]:
+                    cumulative_bets[player] += self.player_history[round_index]["player_bets"][player]
+        
+        # Get unique bet levels in ascending order
+        bet_levels = sorted(set(bet for bet in cumulative_bets.values() if bet > 0))
+        
+        if len(bet_levels) <= 1:
+            # All players bet the same amount
+            total_pot = sum(cumulative_bets.values())
+            return [type('Pot', (), {'amount': total_pot, 'eligible_players': active_players})()]
+        
+        # Create side pots for each betting level
+        pots = []
+        for i, current_level in enumerate(bet_levels):
+            prev_level = bet_levels[i-1] if i > 0 else 0
+            level_contribution = current_level - prev_level
+            
+            # Find players who contributed to this level
+            eligible_players = set()
+            contributing_count = 0
+            for player_id, bet_amount in cumulative_bets.items():
+                if bet_amount >= current_level:
+                    contributing_count += 1
+                    # Only active players are eligible to win
+                    if player_id in active_players:
+                        eligible_players.add(player_id)
+            
+            if contributing_count > 0 and level_contribution > 0:
+                pot_amount = level_contribution * contributing_count
+                pots.append(type('Pot', (), {'amount': pot_amount, 'eligible_players': eligible_players})())
+        
+        # If no pots were created, create a single main pot
+        if len(pots) == 0:
+            total_pot = sum(cumulative_bets.values())
+            pots = [type('Pot', (), {'amount': total_pot, 'eligible_players': active_players})()]
+        
+        return pots
+
+    def _write_game_log_to_file(self):
+        """Write the game log to a JSON file"""
         try:
             game_id = self.json_game_log.get('gameId', f"unknown_{int(time.time())}")
             
