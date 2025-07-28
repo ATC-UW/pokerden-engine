@@ -199,6 +199,137 @@ class TestSidePots(unittest.TestCase):
         # Verify zero-sum
         self.assertEqual(sum(game.score.values()), 0)
 
+    def test_side_pots_all_in_lose_some_money(self):
+        """Test that side pots are created when all players go all-in, and some players lose money"""
+        game = Game(debug=True)
+        
+        game.add_player(1)
+        game.add_player(2)
+
+        game.start_game()
+        
+        # Set hands - Player 2 has the best hand
+        game.hands[1] = [eval7.Card("7s"), eval7.Card("3d")]  # Weak hand
+        game.hands[2] = [eval7.Card("As"), eval7.Card("Ad")]  # Pair of Aces (best hand)
+        
+        # Set a board that doesn't help anyone make straights/flushes
+        game.board = [eval7.Card("2h"), eval7.Card("4s"), eval7.Card("6d"), eval7.Card("Jc"), eval7.Card("Kh")]
+
+        # Player 1 goes all-in for 1000
+        game.update_game(1, (PokerAction.ALL_IN, 24786))
+        
+        # Player 2 goes all-in for 50
+        game.update_game(2, (PokerAction.ALL_IN, 7748))
+
+        # Should create 2 pots
+        self.assertEqual(len(game.current_round.pots), 2)
+        # End the round and game to calculate scores
+        game.end_round()
+        game.end_game()
+        
+        # Player 2 should win the entire pot with pair of Aces
+        print(f"Final scores: {game.score}")
+        self.assertEqual(game.score[1], -7748)  # Lost bet
+        self.assertEqual(game.score[2], 7748)  # Won pot minus bet: 150-50=100
+
+    def test_all_in_win_limit_bug(self):
+        """Test the specific bug where a player wins more than they should based on their all-in amount"""
+        game = Game(debug=True)
+        
+        game.add_player(1)  # peak (smaller all-in)
+        game.add_player(2)  # elise03 (larger all-in)
+
+        game.start_game()
+        
+        # Set hands - Player 1 has the best hand (should win)
+        game.hands[1] = [eval7.Card("As"), eval7.Card("Ad")]  # Pair of Aces (best hand)
+        game.hands[2] = [eval7.Card("7s"), eval7.Card("3d")]  # Weak hand
+        
+        # Set a board that doesn't help anyone make straights/flushes
+        game.board = [eval7.Card("2h"), eval7.Card("4s"), eval7.Card("6d"), eval7.Card("Jc"), eval7.Card("Kh")]
+
+        # Player 1 (peak) goes all-in for 7748
+        game.update_game(1, (PokerAction.ALL_IN, 7748))
+        
+        # Player 2 (elise03) goes all-in for 24786
+        game.update_game(2, (PokerAction.ALL_IN, 24786))
+
+        # Should create 2 pots
+        self.assertEqual(len(game.current_round.pots), 2)
+        
+        # End the round and game to calculate scores
+        game.end_round()
+        game.end_game()
+        
+        # Player 1 should win, but can only win up to 2 * 7748 = 15496 chips
+        # (their all-in amount from each player)
+        print(f"Final scores: {game.score}")
+        print(f"Player 1 bet: 7748, should win max: {7748 * 2}")
+        print(f"Player 2 bet: 24786, should lose max: {7748 * 2}")
+        
+        # Player 1 should win at most 15496 chips (2 * their all-in amount)
+        # Player 2 should lose at most 15496 chips
+        self.assertLessEqual(game.score[1], 7748)  # Should win at most their all-in amount
+        self.assertGreaterEqual(game.score[2], -15496)  # Should lose at most 2 * opponent's all-in amount
+        
+        # Verify zero-sum
+        self.assertEqual(sum(game.score.values()), 0)
+
+    def test_multiple_rounds_all_in_scenario(self):
+        """Test the actual game scenario with multiple rounds and cumulative scoring"""
+        game = Game(debug=True)
+        
+        game.add_player(1)  # peak
+        game.add_player(2)  # elise03
+
+        game.start_game()
+        
+        # Set hands - Player 1 has the best hand throughout
+        game.hands[1] = [eval7.Card("As"), eval7.Card("Ad")]  # Pair of Aces (best hand)
+        game.hands[2] = [eval7.Card("7s"), eval7.Card("3d")]  # Weak hand
+        
+        # Set a board that doesn't help anyone make straights/flushes
+        game.board = [eval7.Card("2h"), eval7.Card("4s"), eval7.Card("6d"), eval7.Card("Jc"), eval7.Card("Kh")]
+
+        # Round 0: Initial betting
+        game.update_game(1, (PokerAction.ALL_IN, 7748))
+        game.update_game(2, (PokerAction.ALL_IN, 24786))
+        game.end_round()
+        
+        # Round 1: Both players are all-in from previous round
+        game.start_round()
+        game.update_game(1, (PokerAction.ALL_IN, 0))  # Already all-in
+        game.update_game(2, (PokerAction.ALL_IN, 0))  # Already all-in
+        game.end_round()
+        
+        # Round 2: Both players are all-in from previous round
+        game.start_round()
+        game.update_game(1, (PokerAction.ALL_IN, 0))  # Already all-in
+        game.update_game(2, (PokerAction.ALL_IN, 0))  # Already all-in
+        game.end_round()
+        
+        # Round 3: Both players are all-in from previous round
+        game.start_round()
+        game.update_game(1, (PokerAction.ALL_IN, 0))  # Already all-in
+        game.update_game(2, (PokerAction.ALL_IN, 0))  # Already all-in
+        game.end_round()
+        
+        # End the game to calculate final scores
+        game.end_game()
+        
+        print(f"Final scores: {game.score}")
+        print(f"Player 1 total bet: 7748")
+        print(f"Player 2 total bet: 24786")
+        print(f"Total pot: {sum(game.score.values()) + 7748 + 24786}")
+        
+        # Player 1 should win, but can only win up to 2 * 7748 = 15496 chips
+        # (their all-in amount from each player)
+        self.assertLessEqual(game.score[1], 7748)  # Should win at most their all-in amount
+        self.assertGreaterEqual(game.score[2], -15496)  # Should lose at most 2 * opponent's all-in amount
+        
+        # Verify zero-sum
+        self.assertEqual(sum(game.score.values()), 0)
+
 
 if __name__ == '__main__':
     unittest.main() 
