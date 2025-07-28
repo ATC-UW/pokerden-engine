@@ -366,16 +366,74 @@ class Game:
         # Calculate cumulative side pots that respect all-in limits
         final_pots = self._calculate_cumulative_side_pots()
         
+        # Initialize all player scores to 0
+        for player in self.players:
+            self.score[player] = 0
+        
+        # Check if all players folded except one - this player should win the pot
+        if self.current_round:
+            non_folded_players = [player_id for player_id, action in self.current_round.player_actions.items() 
+                                if action != PokerAction.FOLD]
+            
+            if len(non_folded_players) == 1:
+                # Only one player didn't fold - they win the entire pot
+                winner = non_folded_players[0]
+                self.score[winner] = total_pot_amount
+                
+                if self.debug:
+                    print(f"All players folded except {winner}. Awarding entire pot of {total_pot_amount} to {winner}")
+                
+                # Subtract each player's total bets from their score
+                for player in self.players:
+                    total_bets = 0
+                    for round_index in self.player_history:
+                        if player in self.player_history[round_index]["player_bets"]:
+                            total_bets += self.player_history[round_index]["player_bets"][player]
+                    self.score[player] -= total_bets
+                
+                if self.debug:
+                    print(f"Final Scores: {self.score}")
+                    total_score = sum(self.score.values())
+                    print(f"Total score (should be 0): {total_score}")
+                
+                self.is_running = False
+                
+                # Handle JSON logging for this case
+                if self.current_round and hasattr(self.current_round, 'get_side_pots_info'):
+                    side_pots_info = self.current_round.get_side_pots_info()
+                    self.json_game_log['sidePots'] = [
+                        {
+                            "amount": pot["amount"],
+                            "eligible_players": [p - 1 for p in pot["eligible_players"]]
+                        }
+                        for pot in side_pots_info
+                    ]
+                
+                # Add final money and delta information to the game log
+                if 'playerMoney' not in self.json_game_log:
+                    self.json_game_log['playerMoney'] = {}
+                
+                self.json_game_log['playerMoney']['finalMoney'] = {str(p_id): money for p_id, money in self.player_final_money.items()}
+                self.json_game_log['playerMoney']['finalDelta'] = {str(p_id): delta for p_id, delta in self.player_delta.items()}
+                self.json_game_log['playerMoney']['gameScores'] = {str(p_id): score for p_id, score in self.score.items()}
+                
+                # Calculate game deltas (difference between final and starting money)
+                game_deltas = {}
+                for player_id in self.score:
+                    game_deltas[str(player_id)] = self.score[player_id]
+                
+                self.json_game_log['playerMoney']['thisGameDelta'] = game_deltas
+                
+                # Write game log to file
+                self._write_game_log_to_file()
+                return
+        
         # Evaluate hands for all active players
         hand_values = {}
         for player in self.active_players:
             players_hand = self.hands[player].copy()
             players_hand.extend(self.board)
             hand_values[player] = eval7.evaluate(players_hand)
-        
-        # Initialize all player scores to 0
-        for player in self.players:
-            self.score[player] = 0
         
         if self.debug:
             print(f"Hand values: {hand_values}")
