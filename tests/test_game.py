@@ -293,6 +293,87 @@ class TestStartRound(unittest.TestCase):
         self.assertEqual(5, len(game.board))
         self.assertEqual(3, game.round_index)
 
+class TestPotDistribution(unittest.TestCase):
+    def test_all_players_fold_except_one(self):
+        """Test that when all players fold except one, that player wins the pot"""
+        game = Game(debug=True)
+        game.add_player(1)
+        game.add_player(2)
+        game.add_player(3)
+        game.start_game()
+        
+        # Set up a scenario where players bet money in the first round
+        game.update_game(1, (PokerAction.RAISE, 10))
+        game.update_game(2, (PokerAction.CALL, 10))
+        game.update_game(3, (PokerAction.CALL, 10))
+        
+        # End the first round
+        game.end_round()
+        
+        # Start the next round
+        game.start_round()
+        
+        # All players fold except player 1
+        game.update_game(1, (PokerAction.CHECK, 0))  # Player 1 doesn't fold
+        game.update_game(2, (PokerAction.FOLD, 0))   # Player 2 folds
+        game.update_game(3, (PokerAction.FOLD, 0))   # Player 3 folds
+        
+        # End the game
+        game.end_game()
+        
+        # Player 1 should win the pot (30 chips total)
+        expected_score = {1: 20, 2: -10, 3: -10}  # Player 1 wins 20 (net gain), others lose their bets
+        self.assertEqual(expected_score, game.score)
+        
+        # Verify zero-sum
+        total_score = sum(game.score.values())
+        self.assertEqual(0, total_score)
+
+
+class TestScenarioBased(unittest.TestCase):
+    def test_scenario_from_original_game_data(self):
+        """Simulate a scenario similar to the original game data where only one player remains after folds."""
+        # Player IDs from the original scenario
+        player_ids = [215302037, 2247384581, 3630612293, 3651530891, 3705131898, 3950465666]
+        game = Game(debug=True)
+        for player_id in player_ids:
+            game.add_player(player_id)
+        game.start_game()
+
+        # Simulate betting in the first round (similar to the original game)
+        game.update_game(3651530891, (PokerAction.RAISE, 5))   # Small blind
+        game.update_game(2247384581, (PokerAction.RAISE, 10))  # Big blind
+        game.update_game(3705131898, (PokerAction.RAISE, 17))
+        game.update_game(3630612293, (PokerAction.CALL, 17))
+        game.update_game(3950465666, (PokerAction.RAISE, 1051))
+        game.update_game(215302037, (PokerAction.FOLD, 0))
+        game.update_game(3651530891, (PokerAction.FOLD, 0))
+        game.update_game(2247384581, (PokerAction.FOLD, 0))
+        game.update_game(3705131898, (PokerAction.RAISE, 1601))
+        game.update_game(3630612293, (PokerAction.CALL, 1601))
+        game.update_game(3950465666, (PokerAction.RAISE, 1216))
+        game.update_game(3705131898, (PokerAction.RAISE, 4534))
+        game.update_game(3630612293, (PokerAction.CALL, 4534))
+        game.update_game(3950465666, (PokerAction.FOLD, 0))
+
+        # End the first round
+        game.end_round()
+        # Start the second round (flop)
+        game.start_round()
+        # In the second round, all players fold except one
+        game.update_game(3705131898, (PokerAction.FOLD, 0))   # Player folds
+        game.update_game(3630612293, (PokerAction.CHECK, 0))  # Player doesn't fold
+        # End the game
+        game.end_game()
+
+        # Only player 3630612293 should have a positive score, others negative or zero
+        winners = {player: score for player, score in game.score.items() if score > 0}
+        losers = {player: score for player, score in game.score.items() if score < 0}
+        self.assertTrue(3630612293 in winners)
+        self.assertTrue(all(score <= 0 for pid, score in game.score.items() if pid != 3630612293))
+        # Zero-sum check
+        self.assertEqual(sum(game.score.values()), 0)
+
 
 if __name__ == '__main__':
     unittest.main()
