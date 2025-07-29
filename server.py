@@ -323,9 +323,6 @@ class PokerEngineServer:
                     # Update the game with final money information for logging
                     self.game.update_final_money_after_game(score, self.player_money.copy(), self.player_delta.copy())
                     
-                    # Re-write the game log with updated money information
-                    self.game.end_game()
-                    
                     for player_id in score.keys():
                         # get active players hands information
                         active_players = self.game.get_active_players()
