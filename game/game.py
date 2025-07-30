@@ -286,6 +286,7 @@ class Game:
             return
 
         self.round_index += 1
+        
         # Create new round state
         self.current_round = RoundState(self.active_players)
 
@@ -413,7 +414,6 @@ class Game:
                 if 'playerMoney' not in self.json_game_log:
                     self.json_game_log['playerMoney'] = {}
                 
-                self.json_game_log['playerMoney']['finalMoney'] = {str(p_id): money for p_id, money in self.player_final_money.items()}
                 
                 # Calculate final delta as starting delta + current game delta
                 final_deltas = {}
@@ -424,6 +424,7 @@ class Game:
                 
                 self.json_game_log['playerMoney']['finalDelta'] = final_deltas
                 self.json_game_log['playerMoney']['gameScores'] = {str(p_id): score for p_id, score in self.score.items()}
+                self.json_game_log['playerMoney']['finalMoney'] = {str(p_id): money + self.score[p_id] for p_id, money in self.player_final_money.items()}
                 
                 # Calculate game deltas (difference between final and starting money)
                 game_deltas = {}
@@ -524,7 +525,6 @@ class Game:
         if 'playerMoney' not in self.json_game_log:
             self.json_game_log['playerMoney'] = {}
         
-        self.json_game_log['playerMoney']['finalMoney'] = {str(p_id): money for p_id, money in self.player_final_money.items()}
         
         # Calculate final delta as starting delta + current game delta
         final_deltas = {}
@@ -535,6 +535,7 @@ class Game:
         
         self.json_game_log['playerMoney']['finalDelta'] = final_deltas
         self.json_game_log['playerMoney']['gameScores'] = {str(p_id): score for p_id, score in self.score.items()}
+        self.json_game_log['playerMoney']['finalMoney'] = {str(p_id): money + self.score[p_id] for p_id, money in self.player_final_money.items()}
         
         # Calculate game deltas (difference between final and starting money)
         game_deltas = {}
@@ -742,5 +743,4 @@ class Game:
 
     def update_final_money_after_game(self, game_scores: Dict[int, int], updated_player_money: Dict[int, int], updated_player_delta: Dict[int, int]):
         """Update final money and delta information after game ends"""
-        self.player_final_money = updated_player_money.copy()
         self.player_delta = updated_player_delta.copy()
