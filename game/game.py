@@ -414,7 +414,15 @@ class Game:
                     self.json_game_log['playerMoney'] = {}
                 
                 self.json_game_log['playerMoney']['finalMoney'] = {str(p_id): money for p_id, money in self.player_final_money.items()}
-                self.json_game_log['playerMoney']['finalDelta'] = {str(p_id): delta for p_id, delta in self.player_delta.items()}
+                
+                # Calculate final delta as starting delta + current game delta
+                final_deltas = {}
+                for player_id in self.score:
+                    starting_delta = self.player_delta.get(player_id, 0)
+                    current_game_delta = self.score[player_id]
+                    final_deltas[str(player_id)] = starting_delta + current_game_delta
+                
+                self.json_game_log['playerMoney']['finalDelta'] = final_deltas
                 self.json_game_log['playerMoney']['gameScores'] = {str(p_id): score for p_id, score in self.score.items()}
                 
                 # Calculate game deltas (difference between final and starting money)
@@ -517,7 +525,15 @@ class Game:
             self.json_game_log['playerMoney'] = {}
         
         self.json_game_log['playerMoney']['finalMoney'] = {str(p_id): money for p_id, money in self.player_final_money.items()}
-        self.json_game_log['playerMoney']['finalDelta'] = {str(p_id): delta for p_id, delta in self.player_delta.items()}
+        
+        # Calculate final delta as starting delta + current game delta
+        final_deltas = {}
+        for player_id in self.score:
+            starting_delta = self.player_delta.get(player_id, 0)
+            current_game_delta = self.score[player_id]
+            final_deltas[str(player_id)] = starting_delta + current_game_delta
+        
+        self.json_game_log['playerMoney']['finalDelta'] = final_deltas
         self.json_game_log['playerMoney']['gameScores'] = {str(p_id): score for p_id, score in self.score.items()}
         
         # Calculate game deltas (difference between final and starting money)
