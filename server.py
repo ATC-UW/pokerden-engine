@@ -100,7 +100,7 @@ class PokerEngineServer:
                 self.append_to_file(OUTPUT_GAME_RESULT_FILE, "RUNNING")
             self.accept_connections()
         except Exception as e:
-            logger.error(f"Error starting server: {e}")
+            logger.error(f"Error starting server: {e.with_traceback()}")
             print(f"Error starting server: {e}")
             self.stop_server()
 
@@ -254,32 +254,28 @@ class PokerEngineServer:
             self.send_message(player_id, str(connect_message))
             self.send_text_message(player_id, f"Welcome to Game #{self.game_count}! Your ID is {player_id}")
 
+        # Assign blinds with money check - this will handle players who can't afford blinds
+        forced_fold_players = self.game.assign_blinds_with_money_check(self.player_money, self.blind_amount)
+        
+        # Handle players who were forced to fold due to insufficient money
+        for player_id in forced_fold_players:
+            logger.warning(f"Player {player_id} forced to fold due to insufficient money for blinds")
+            print(f"Player {player_id} forced to fold due to insufficient money for blinds")
+            self.broadcast_text(f"Player {player_id} automatically folded due to insufficient money for blinds")
+        
+        # Start the game after blind assignment
         self.game.start_game()
+        
         # broadcast message with hands to each player
         all_player_ids = list(self.player_connections.keys())
         for (player_id, conn) in self.player_connections.items():
-            logger.debug(f"Player {player_id} hands: {self.game.get_player_hands(player_id)}")
+            if player_id in forced_fold_players:
+                continue
+            # logger.debug(f"Player {player_id} hands: {self.game.get_player_hands(player_id)}")
             
             # Determine if this player is small blind or big blind
             is_small_blind = player_id == self.game.get_small_blind_player()
             is_big_blind = player_id == self.game.get_big_blind_player()
-            
-            # Check if player can afford their blind
-            if is_small_blind:
-                small_blind_amount = self.blind_amount // 2
-                if not self.can_player_afford_blind(player_id, small_blind_amount):
-                    logger.warning(f"Player {player_id} cannot afford small blind ({small_blind_amount}), has {self.player_money.get(player_id, 0)}")
-                    print(f"Player {player_id} cannot afford small blind ({small_blind_amount}), has {self.player_money.get(player_id, 0)}")
-                    # Force them to fold
-                    self.force_player_fold_due_to_insufficient_money(player_id)
-                    continue
-            elif is_big_blind:
-                if not self.can_player_afford_blind(player_id, self.blind_amount):
-                    logger.warning(f"Player {player_id} cannot afford big blind ({self.blind_amount}), has {self.player_money.get(player_id, 0)}")
-                    print(f"Player {player_id} cannot afford big blind ({self.blind_amount}), has {self.player_money.get(player_id, 0)}")
-                    # Force them to fold
-                    self.force_player_fold_due_to_insufficient_money(player_id)
-                    continue
             
             start_message = START(
                 "Game initiated!", 
@@ -623,19 +619,3 @@ class PokerEngineServer:
         logger.debug(f"Player {player_id} can afford {blind_amount}: {can_afford} (money: {current_money}, delta: {current_delta})")
         return can_afford
 
-    def force_player_fold_due_to_insufficient_money(self, player_id):
-        """Force a player to fold due to insufficient money for blinds"""
-        current_money = self.player_money.get(player_id, 0)
-        current_delta = self.player_delta.get(player_id, 0)
-        logger.info(f"Player {player_id} forced to fold due to insufficient money (money: {current_money}, delta: {current_delta})")
-        print(f"Player {player_id} forced to fold due to insufficient money (money: {current_money}, delta: {current_delta})")
-        
-        # Process a fold action for this player
-        action_tuple = (PokerAction.FOLD, 0)
-        try:
-            self.game.update_game(player_id, action_tuple)
-            self.broadcast_text(f"Player {player_id} automatically folded due to insufficient money")
-            return True
-        except Exception as e:
-            logger.error(f"Error forcing fold for player {player_id}: {e}")
-            return False
