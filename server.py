@@ -316,6 +316,7 @@ class PokerEngineServer:
                         self.game.end_game()
                     
                     score = self.game.get_final_score()
+                    logger.info(f"Final score: {score}")
                     
                     # Update player money based on game results
                     self.update_player_money_after_game(score)
