@@ -90,6 +90,75 @@ class Game:
             self.small_blind_player = self.active_players[(self.dealer_button_position + 1) % len(self.active_players)]
             self.big_blind_player = self.active_players[(self.dealer_button_position + 2) % len(self.active_players)]
 
+    def assign_blinds_with_money_check(self, player_money: Dict[int, int], blind_amount: int):
+        """
+        Assign small and big blind players based on dealer button position and player money.
+        Skip players who can't afford blinds and assign to the first players who can afford them.
+        Returns a list of players who were forced to fold due to insufficient money.
+        """
+        if len(self.active_players) < 2:
+            return []
+        
+        forced_fold_players = []
+        small_blind_amount = blind_amount // 2
+        
+        # Get all players in order starting from dealer button position
+        all_players = self.players.copy()
+        num_players = len(all_players)
+        
+        # First pass: remove players who can't afford any blind
+        players_to_remove = []
+        for player_id in self.active_players:
+            if player_money.get(player_id, 0) < small_blind_amount:
+                players_to_remove.append(player_id)
+        
+        for player_id in players_to_remove:
+            forced_fold_players.append(player_id)
+            self.active_players.remove(player_id)
+        
+        # If we don't have enough players after removing those who can't afford small blind
+        if len(self.active_players) < 2:
+            return forced_fold_players
+        
+        # Find small blind player (first player who can afford small blind)
+        small_blind_player = None
+        for i in range(num_players):
+            player_pos = (self.dealer_button_position + i) % num_players
+            player_id = all_players[player_pos]
+            if player_id in self.active_players:
+                small_blind_player = player_id
+                break
+        
+        # Find big blind player (next player who can afford big blind)
+        big_blind_player = None
+        for i in range(num_players):
+            player_pos = (self.dealer_button_position + i) % num_players
+            player_id = all_players[player_pos]
+            if player_id in self.active_players and player_id != small_blind_player:
+                if player_money.get(player_id, 0) >= blind_amount:
+                    big_blind_player = player_id
+                    break
+                else:
+                    # This player can afford small blind but not big blind
+                    # Force them to fold
+                    forced_fold_players.append(player_id)
+                    self.active_players.remove(player_id)
+        
+        # If we still don't have a big blind player, find the next one
+        if big_blind_player is None:
+            for i in range(num_players):
+                player_pos = (self.dealer_button_position + i) % num_players
+                player_id = all_players[player_pos]
+                if player_id in self.active_players and player_id != small_blind_player:
+                    big_blind_player = player_id
+                    break
+        
+        # Assign the blind players
+        self.small_blind_player = small_blind_player
+        self.big_blind_player = big_blind_player
+        
+        return forced_fold_players
+
     def post_blinds(self):
         """Automatically post the blinds for small and big blind players"""
         if self.small_blind_player and self.big_blind_player:
@@ -215,8 +284,8 @@ class Game:
             player: 0 for player in self.active_players
         }
         
-        # Assign blinds for this game
-        self.assign_blinds()
+        # Blinds are now assigned by the server before calling start_game()
+        # self.assign_blinds()  # Removed - handled by server
         
         self.json_game_log['playerNames'] = {p_id - 1: f"player{p_id}" for p_id in self.players}
 
