@@ -68,14 +68,12 @@ class TestPlayerMoneyLogging(unittest.TestCase):
         # Simulate game scores
         game_scores = {1001: 100, 1002: -200, 1003: 100}
         
-        # Simulate final money after game
-        final_money = {1001: 10100, 1002: 9300, 1003: 10600}
-        final_delta = {1001: 100, 1002: -700, 1003: 600}
+        # Update player_final_money to reflect the expected final money
+        expected_final_money = {1001: 10100, 1002: 9300, 1003: 10600}
+        for player_id, money in expected_final_money.items():
+            self.game.player_final_money[player_id] = money
         
-        # Update final money information
-        self.game.update_final_money_after_game(game_scores, final_money, final_delta)
-        
-        # Manually set scores (normally done by game logic)
+        # Set the scores before ending the game
         self.game.score = game_scores
         
         # End game (this should add final money information)
@@ -86,13 +84,17 @@ class TestPlayerMoneyLogging(unittest.TestCase):
         
         # Check final money
         self.assertIn('finalMoney', player_money_section)
-        for player_id, money in final_money.items():
-            self.assertEqual(int(player_money_section['finalMoney'][str(player_id)]), money)
+        for player_id, expected_money in expected_final_money.items():
+            actual_money = int(player_money_section['finalMoney'][str(player_id)])
+            self.assertEqual(actual_money, expected_money)
         
-        # Check final delta
+        # Check final delta (should be starting delta + game scores)
         self.assertIn('finalDelta', player_money_section)
-        for player_id, delta in final_delta.items():
-            self.assertEqual(int(player_money_section['finalDelta'][str(player_id)]), delta)
+        for player_id, score in game_scores.items():
+            starting_delta = self.player_delta[player_id]
+            expected_final_delta = starting_delta + score
+            actual_final_delta = int(player_money_section['finalDelta'][str(player_id)])
+            self.assertEqual(actual_final_delta, expected_final_delta)
         
         # Check game scores
         self.assertIn('gameScores', player_money_section)
@@ -128,14 +130,21 @@ class TestPlayerMoneyLogging(unittest.TestCase):
             self.initial_money
         )
         
-        # Start and end game with some scores
+        # Start game
         self.game.start_game()
-        game_scores = {1001: 50, 1002: -100, 1003: 50}
-        final_money = {1001: 10050, 1002: 9400, 1003: 10550}
-        final_delta = {1001: 50, 1002: -600, 1003: 550}
         
-        self.game.update_final_money_after_game(game_scores, final_money, final_delta)
+        # Set up expected final money and scores
+        game_scores = {1001: 50, 1002: -100, 1003: 50}
+        expected_final_money = {1001: 10050, 1002: 9400, 1003: 10550}
+        
+        # Update player_final_money to reflect the expected final money
+        for player_id, money in expected_final_money.items():
+            self.game.player_final_money[player_id] = money
+        
+        # Set the scores before ending the game
         self.game.score = game_scores
+        
+        # End game
         self.game.end_game()
         
         # Check complete structure
@@ -144,6 +153,18 @@ class TestPlayerMoneyLogging(unittest.TestCase):
         
         for key in expected_keys:
             self.assertIn(key, player_money_section, f"Missing key: {key}")
+        
+        # Verify final money calculation is correct
+        for player_id, expected_money in expected_final_money.items():
+            actual_money = int(player_money_section['finalMoney'][str(player_id)])
+            self.assertEqual(actual_money, expected_money)
+        
+        # Verify final delta calculation is correct
+        for player_id, score in game_scores.items():
+            starting_delta = self.player_delta[player_id]
+            expected_final_delta = starting_delta + score
+            actual_final_delta = int(player_money_section['finalDelta'][str(player_id)])
+            self.assertEqual(actual_final_delta, expected_final_delta)
         
         # Verify JSON is serializable
         json_str = json.dumps(self.game.json_game_log, indent=2)
