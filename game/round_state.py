@@ -184,7 +184,7 @@ class RoundState:
             input amount doesn't matter
             """
             call_amount = self.raise_amount - self.player_bets[player_id]
-            if call_amount <= 0:
+            if call_amount < 0:
                 raise ValueError("Cannot call with less than the raise amount")
             self.player_bets[player_id] += call_amount
             actual_amount = call_amount
@@ -202,6 +202,7 @@ class RoundState:
                 self._update_waiting_for_after_raise(player_id)
         elif action == PokerAction.RAISE:
             if amount + self.player_bets[player_id] <= self.raise_amount:
+                print(f"Raise amount: {amount + self.player_bets[player_id]} <= {self.raise_amount}")
                 raise ValueError("Raise amount + current bet must be higher than the current raise")
             self.raise_amount = self.player_bets[player_id] + amount
             self.bettor = player_id
