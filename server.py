@@ -276,6 +276,7 @@ class PokerEngineServer:
             # Determine if this player is small blind or big blind
             is_small_blind = player_id == self.game.get_small_blind_player()
             is_big_blind = player_id == self.game.get_big_blind_player()
+            logger.info(f"Player {player_id} is small blind: {is_small_blind}, big blind: {is_big_blind}")
             
             start_message = START(
                 "Game initiated!", 
