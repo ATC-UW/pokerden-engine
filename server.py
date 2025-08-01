@@ -291,6 +291,7 @@ class PokerEngineServer:
             logger.debug(f"Sending start message to player {player_id}: {str(start_message)}")  
             self.send_message(player_id, str(start_message))
         
+        self.game.post_blinds()
         self.broadcast_game_state()
 
         round_start_message = ROUND_START(get_round_name_from_enum(self.game.get_current_round()))

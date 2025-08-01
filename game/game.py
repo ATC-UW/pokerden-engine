@@ -144,22 +144,22 @@ class Game:
         
         return forced_fold_players
 
-    def post_blinds(self):
-        """Automatically post the blinds for small and big blind players"""
-        if self.small_blind_player and self.big_blind_player:
-            # Post small blind
-            self.current_round.update_player_action(
-                self.small_blind_player, 
-                PokerAction.RAISE, 
-                self.blind_amount // 2
-            )
+    # def post_blinds(self):
+    #     """Automatically post the blinds for small and big blind players"""
+    #     if self.small_blind_player and self.big_blind_player:
+    #         # Post small blind
+    #         self.current_round.update_player_action(
+    #             self.small_blind_player, 
+    #             PokerAction.RAISE, 
+    #             self.blind_amount // 2
+    #         )
             
-            # Post big blind
-            self.current_round.update_player_action(
-                self.big_blind_player, 
-                PokerAction.RAISE, 
-                self.blind_amount
-            )
+    #         # Post big blind
+    #         self.current_round.update_player_action(
+    #             self.big_blind_player, 
+    #             PokerAction.RAISE, 
+    #             self.blind_amount
+    #         )
 
     def assign_player_ids_hand(self, player_id: int, hand: List[str]):
         """
@@ -285,6 +285,27 @@ class Game:
         self.current_round = RoundState(self.active_players)
         
         # Don't post blinds automatically - let clients handle it when they receive action requests
+
+    def post_blinds(self):
+        if not self.small_blind_player or not self.big_blind_player:
+            print("No small or big blind player")
+            return
+        self.current_round.update_player_action(
+            self.small_blind_player, 
+            PokerAction.RAISE, 
+            self.blind_amount // 2
+        )
+        self.current_round.update_player_action(
+            self.big_blind_player, 
+            PokerAction.RAISE, 
+            self.blind_amount
+        )
+        
+        others = self.current_round.waiting_for.copy()
+        others.add(self.small_blind_player)
+        others.add(self.big_blind_player)
+
+        self.current_round.waiting_for = others
 
     def update_game(self, player_id: int, action: Tuple[PokerAction, int]):
         if player_id not in self.active_players:
@@ -428,12 +449,23 @@ class Game:
         # Check if all players folded except one - this player should win the pot
         if self.current_round:
             if self.round_index == 0:
+                print("this get called")
                 non_folded_players = [player_id for player_id in self.active_players]
             else:
+                print("this get called 2")
                 non_folded_players = [
                     player_id for player_id in self.player_history[self.round_index - 1]["player_actions"]
                     if self.player_history[self.round_index - 1]["player_actions"][player_id] != PokerAction.FOLD
                 ]
+
+            # if all players folded, the last player who acted is the winner
+            if len(non_folded_players) == 0:
+                print("Everyone folded, default to last player who acted")
+                last_folded_player = self.player_history[max(self.round_index - 1, 0)]["action_sequence"][-1]["player"]
+                non_folded_players.append(int(last_folded_player) + 1)
+                # winner = self.current_round.player_actions[self.current_round.bettor]
+                # self.score[winner] = total_pot_amount
+                # return
             
             if len(non_folded_players) == 1:
                 print(f"All players folded except {non_folded_players[0]}. Awarding entire pot of {total_pot_amount} to {non_folded_players[0]}")

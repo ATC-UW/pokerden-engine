@@ -8,6 +8,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from server import PokerEngineServer
 from game.game import Game
 
+from poker_type.game import PokerAction
+
 class TestDealerRotationWithMoney(unittest.TestCase):
     """Test dealer button rotation considering players who can't afford blinds"""
     
