@@ -771,11 +771,11 @@ class Game:
         
         # Find the starting position for post-flop action
         if num_players == 2:
-            # Heads-up: big blind acts first post-flop
-            start_pos = (self.dealer_button_position + 1) % num_players
+            # Heads-up: small blind acts first post-flop
+            start_pos = (self.dealer_button_position) % num_players
         else:
             # Multi-player: small blind acts first post-flop (to the left of dealer)
-            start_pos = (self.dealer_button_position + 1) % num_players
+            start_pos = (self.dealer_button_position) % num_players
         
         # Create ordered list starting from the correct position
         ordered_players = []
@@ -810,7 +810,7 @@ class Game:
         else:
             # Multi-player: small blind acts first pre-flop
             # Small blind is at position (dealer_button_position + 1) % num_players
-            start_pos = (self.dealer_button_position + 1) % num_players
+            start_pos = (self.dealer_button_position + 2) % num_players
         
         # Create ordered list starting from small blind position
         ordered_players = []

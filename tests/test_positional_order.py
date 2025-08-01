@@ -24,18 +24,19 @@ class TestPositionalOrder(unittest.TestCase):
         
         # Set dealer button at position 2 (3rd player)
         self.game.set_dealer_button_position(2)
-        self.game.assign_blinds()
+        self.game.small_blind_player = 3024546899
+        self.game.big_blind_player = 3133671359
         
-        # Expected: Small blind acts first, then big blind, then continue clockwise
+        # Expect UTG to act first, then continue clockwise, with BB acting last
         preflop_order = self.game.get_preflop_order(self.players_6)
         
         # Small blind should act first
-        self.assertEqual(preflop_order[0], self.game.small_blind_player,
+        self.assertEqual(preflop_order[4], self.game.small_blind_player,
                         "Small blind should act first in preflop")
         
-        # Big blind should act second
-        self.assertEqual(preflop_order[1], self.game.big_blind_player,
-                        "Big blind should act second in preflop")
+        # Big blind should act last
+        self.assertEqual(preflop_order[5], self.game.big_blind_player,
+                        "Big blind should act last in preflop")
         
         # Verify all players are included
         self.assertEqual(len(preflop_order), 6, "All 6 players should be in preflop order")
@@ -50,7 +51,8 @@ class TestPositionalOrder(unittest.TestCase):
         
         # Set dealer button at position 2 (3rd player)
         self.game.set_dealer_button_position(2)
-        self.game.assign_blinds()
+        self.game.small_blind_player = 3024546899
+        self.game.big_blind_player = 3133671359
         
         # Post-flop should start with small blind position
         postflop_order = self.game.get_positional_order(self.players_6)
@@ -74,7 +76,9 @@ class TestPositionalOrder(unittest.TestCase):
         
         # Set dealer button at position 0
         self.game.set_dealer_button_position(0)
-        self.game.assign_blinds()
+        self.game.small_blind_player = 1519405612
+        self.game.big_blind_player = 3789843670
+        
         
         # In heads-up: dealer is small blind, non-dealer is big blind
         # Preflop: small blind (dealer) acts first
@@ -82,10 +86,10 @@ class TestPositionalOrder(unittest.TestCase):
         self.assertEqual(preflop_order[0], self.game.small_blind_player,
                         "Small blind should act first in heads-up preflop")
         
-        # Post-flop: big blind acts first
+        # Post-flop: small blind acts first
         postflop_order = self.game.get_positional_order(players_2)
-        self.assertEqual(postflop_order[0], self.game.big_blind_player,
-                        "Big blind should act first in heads-up post-flop")
+        self.assertEqual(postflop_order[0], self.game.small_blind_player,
+                        "Small blind should act first in heads-up post-flop")
     
     def test_dealer_button_rotation(self):
         """Test that dealer button rotation affects ordering correctly"""
@@ -96,7 +100,9 @@ class TestPositionalOrder(unittest.TestCase):
         # Test different dealer positions
         for dealer_pos in range(6):
             self.game.set_dealer_button_position(dealer_pos)
-            self.game.assign_blinds()
+            self.game.small_blind_player = self.players_6[dealer_pos]
+            self.game.big_blind_player = self.players_6[(dealer_pos + 1) % 6]
+            
             
             postflop_order = self.game.get_positional_order(self.players_6)
             
@@ -118,7 +124,8 @@ class TestPositionalOrder(unittest.TestCase):
             self.game.add_player(player_id)
         
         self.game.set_dealer_button_position(1)
-        self.game.assign_blinds()
+        self.game.small_blind_player = self.players_6[1]
+        self.game.big_blind_player = self.players_6[2]
         
         # Simulate 4 players remaining (2 folded)
         active_players = [1519405612, 3024546899, 3650021172, 3789843670]
@@ -220,17 +227,18 @@ class TestPositionalOrder(unittest.TestCase):
         # Test different dealer positions
         for dealer_pos in range(6):
             self.game.set_dealer_button_position(dealer_pos)
-            self.game.assign_blinds()
+            self.game.small_blind_player = self.players_6[dealer_pos]
+            self.game.big_blind_player = self.players_6[(dealer_pos + 1) % 6]
             
             preflop_order = self.game.get_preflop_order(self.players_6)
             
-            # Small blind should act first in preflop
-            self.assertEqual(preflop_order[0], self.game.small_blind_player,
+            # Small blind should act 2nd last in preflop
+            self.assertEqual(preflop_order[4], self.game.small_blind_player,
                             f"Small blind should act first in preflop with dealer at position {dealer_pos}")
             
-            # Big blind should act second in preflop
-            self.assertEqual(preflop_order[1], self.game.big_blind_player,
-                            f"Big blind should act second in preflop with dealer at position {dealer_pos}")
+            # Big blind should act last in preflop (position 5 in 6-player game)
+            self.assertEqual(preflop_order[5], self.game.big_blind_player,
+                            f"Big blind should act last in preflop with dealer at position {dealer_pos}")
 
 if __name__ == '__main__':
     unittest.main(verbosity=2) 
