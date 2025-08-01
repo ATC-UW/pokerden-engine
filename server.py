@@ -584,10 +584,41 @@ class PokerEngineServer:
         file.close()
 
     def rotate_dealer_button(self):
-        """Rotate the dealer button to the next player"""
-        self.dealer_button_position = (self.dealer_button_position + 1) % len(self.player_connections)
-        logger.info(f"Dealer button rotated to position {self.dealer_button_position}")
-        print(f"Dealer button rotated to position {self.dealer_button_position}")
+        """Rotate the dealer button to the next player who can afford the big blind"""
+        # Get list of players who can afford the big blind
+        big_blind_amount = self.blind_amount
+        players_who_can_afford_blind = []
+        
+        for player_id in self.player_connections.keys():
+            if self.can_player_afford_blind(player_id, big_blind_amount):
+                players_who_can_afford_blind.append(player_id)
+        
+        if len(players_who_can_afford_blind) == 0:
+            logger.warning("No players can afford the big blind, keeping dealer button in same position")
+            print("No players can afford the big blind, keeping dealer button in same position")
+            return
+        
+        # Find current dealer player
+        all_players = list(self.player_connections.keys())
+        current_dealer_player = all_players[self.dealer_button_position % len(all_players)]
+        
+        # Find the index of current dealer in the list of players who can afford blind
+        try:
+            current_dealer_index = players_who_can_afford_blind.index(current_dealer_player)
+        except ValueError:
+            # Current dealer can't afford blind, start from first player who can
+            current_dealer_index = -1
+        
+        # Rotate to next player who can afford blind
+        next_dealer_index = (current_dealer_index + 1) % len(players_who_can_afford_blind)
+        next_dealer_player = players_who_can_afford_blind[next_dealer_index]
+        
+        # Update dealer button position to point to the next dealer
+        next_dealer_position = all_players.index(next_dealer_player)
+        self.dealer_button_position = next_dealer_position
+        
+        logger.info(f"Dealer button rotated to position {self.dealer_button_position} (player {next_dealer_player} who can afford big blind)")
+        print(f"Dealer button rotated to position {self.dealer_button_position} (player {next_dealer_player} who can afford big blind)")
 
     def update_player_money_after_game(self, game_scores):
         """Update player money based on game results using delta approach"""
