@@ -454,9 +454,11 @@ class Game:
             else:
                 print("this get called 2")
                 non_folded_players = [
-                    player_id for player_id in self.player_history[self.round_index - 1]["player_actions"]
-                    if self.player_history[self.round_index - 1]["player_actions"][player_id] != PokerAction.FOLD
+                    player_id for player_id in self.player_history[self.round_index]["player_actions"]
+                    if self.player_history[self.round_index]["player_actions"][player_id] != PokerAction.FOLD
                 ]
+                print("round index: ", self.round_index)
+                print("player history: ", self.player_history)
 
             # if all players folded, the last player who acted is the winner
             if len(non_folded_players) == 0:
@@ -466,6 +468,8 @@ class Game:
                 # winner = self.current_round.player_actions[self.current_round.bettor]
                 # self.score[winner] = total_pot_amount
                 # return
+
+            print(f"Non folded players: {non_folded_players}")
             
             if len(non_folded_players) == 1:
                 print(f"All players folded except {non_folded_players[0]}. Awarding entire pot of {total_pot_amount} to {non_folded_players[0]}")
