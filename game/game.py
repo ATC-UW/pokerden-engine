@@ -453,12 +453,17 @@ class Game:
                 non_folded_players = [player_id for player_id in self.active_players]
             else:
                 print("this get called 2")
-                non_folded_players = [
-                    player_id for player_id in self.player_history[self.round_index]["player_actions"]
-                    if self.player_history[self.round_index]["player_actions"][player_id] != PokerAction.FOLD
-                ]
+                if len(self.active_players) > 0:
+                    non_folded_players = [
+                        player_id for player_id in self.player_history[self.round_index]["player_actions"]
+                        if self.player_history[self.round_index]["player_actions"][player_id] != PokerAction.FOLD
+                    ]
+                else:
+                    non_folded_players = self.active_players
+
                 print("round index: ", self.round_index)
                 print("player history: ", self.player_history)
+                print("Active players: ", self.active_players)
 
             # if all players folded, the last player who acted is the winner
             if len(non_folded_players) == 0:
