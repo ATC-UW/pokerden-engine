@@ -695,7 +695,17 @@ class Game:
                     contributing_count += 1
                     # Only active players are eligible to win
                     if player_id in active_players:
-                        eligible_players.add(player_id)
+                        # CRITICAL FIX: All-in players from previous rounds should only be eligible
+                        # for pots up to their all-in amount, not for pots created by subsequent betting
+                        if player_id in self.current_round.all_in_players:
+                            # Check if this player went all-in in a previous round
+                            # and if so, only include them if this pot level doesn't exceed their all-in amount
+                            all_in_amount = cumulative_bets[player_id]
+                            if current_level <= all_in_amount:
+                                eligible_players.add(player_id)
+                        else:
+                            # Non-all-in players are eligible for all pots
+                            eligible_players.add(player_id)
             
             if contributing_count > 0 and level_contribution > 0:
                 pot_amount = level_contribution * contributing_count
