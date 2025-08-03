@@ -453,7 +453,7 @@ class Game:
                 non_folded_players = [player_id for player_id in self.active_players]
             else:
                 print("this get called 2")
-                if len(self.active_players) > 0:
+                if len(self.active_players) < 0:
                     non_folded_players = [
                         player_id for player_id in self.player_history[self.round_index]["player_actions"]
                         if self.player_history[self.round_index]["player_actions"][player_id] != PokerAction.FOLD
