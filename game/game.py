@@ -40,6 +40,7 @@ class Game:
         self.small_blind_player = None
         self.big_blind_player = None
         self.dealer_button_position = 0  # This will be set by the server
+        self.blind_players_added_back = False  # Track if blind players got their second action
         
         # Player money tracking
         self.player_starting_money: Dict[int, int] = {}  # Starting money for each player
@@ -236,6 +237,7 @@ class Game:
         self.deck.shuffle()
         self.round_index = 0
         self.is_running = True
+        self.blind_players_added_back = False  # Reset for new game
 
         # Use shared simulation game ID if provided, otherwise generate new one
         game_id = self.simulation_game_id if self.simulation_game_id else str(uuid.uuid4())
@@ -290,22 +292,23 @@ class Game:
         if not self.small_blind_player or not self.big_blind_player:
             print("No small or big blind player")
             return
-        self.current_round.update_player_action(
+        
+        # Post forced blinds using the special method that doesn't affect waiting_for
+        self.current_round.post_forced_blind(
             self.small_blind_player, 
             PokerAction.RAISE, 
             self.blind_amount // 2
         )
-        self.current_round.update_player_action(
+        self.current_round.post_forced_blind(
             self.big_blind_player, 
             PokerAction.RAISE, 
             self.blind_amount
         )
         
-        others = self.current_round.waiting_for.copy()
-        others.add(self.small_blind_player)
-        others.add(self.big_blind_player)
-
-        self.current_round.waiting_for = others
+        # Remove blind players from waiting_for since they've posted forced bets
+        # They will be added back later in the correct order after other players act
+        self.current_round.waiting_for.discard(self.small_blind_player)
+        self.current_round.waiting_for.discard(self.big_blind_player)
 
     def update_game(self, player_id: int, action: Tuple[PokerAction, int]):
         if player_id not in self.active_players:
@@ -354,6 +357,46 @@ class Game:
         # Remove player from active players if they folded
         if action_type == PokerAction.FOLD:
             self.active_players.remove(player_id)
+            
+        # Special preflop logic: After all non-blind players have acted once, 
+        # add blind players back for their option to act
+        if self.round_index == 0:  # Preflop only
+            self._check_and_add_blind_players_back()
+
+    def _check_and_add_blind_players_back(self):
+        """Check if all non-blind players have acted and add blind players back if so"""
+        if not self.small_blind_player or not self.big_blind_player:
+            return
+            
+        # Get all original non-blind players (including those who may have folded)
+        # We need to check against the initial active players, not current ones
+        all_original_players = [p for p in self.current_round.player_bets.keys()]
+        non_blind_players = [p for p in all_original_players 
+                           if p != self.small_blind_player and p != self.big_blind_player]
+        
+        # Check if all non-blind players have acted (have an action recorded)
+        all_non_blind_acted = all(
+            p in self.current_round.player_actions and 
+            self.current_round.player_actions[p] is not None 
+            for p in non_blind_players
+        )
+        
+        # Check if blind players are not currently waiting (meaning they haven't been added back yet)
+        blind_players_not_waiting = (
+            self.small_blind_player not in self.current_round.waiting_for and
+            self.big_blind_player not in self.current_round.waiting_for
+        )
+        
+        # If all non-blind players have acted and blind players aren't waiting and haven't been added back yet
+        if (all_non_blind_acted and blind_players_not_waiting and 
+            len(non_blind_players) > 0 and not self.blind_players_added_back):
+            if self.debug:
+                print(f"All non-blind players have acted. Adding blind players back for their option.")
+            self.current_round.add_blind_players_for_second_action(
+                self.small_blind_player, 
+                self.big_blind_player
+            )
+            self.blind_players_added_back = True  # Mark that we've added them back
 
     def start_round(self):
         if not self.is_next_round():

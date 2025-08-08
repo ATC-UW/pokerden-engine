@@ -166,6 +166,54 @@ class RoundState:
             else:
                 self.player_actions[player] = None
 
+    def post_forced_blind(self, player_id: int, action: PokerAction, amount: int = 0) -> None:
+        """Post a forced blind without affecting the waiting_for logic like a normal raise would"""
+        if amount < 0:
+            raise ValueError("Amount cannot be negative")
+
+        self.player_actions[player_id] = action
+        
+        # For forced blinds, we don't check if player is in waiting_for
+        # and we don't modify waiting_for here
+        
+        if action == PokerAction.RAISE:
+            # Update the bet amount and raise amount
+            self.player_bets[player_id] += amount
+            if self.player_bets[player_id] > self.raise_amount:
+                self.raise_amount = self.player_bets[player_id]
+                self.bettor = player_id
+            # NOTE: We don't call _update_waiting_for_after_raise for forced blinds
+        
+        # Update pots after blind posting
+        self._update_pots()
+        
+        # Record this action in history
+        round_pot_info = self.get_pot_and_side_pots_info()
+        total_pot_info = self.get_total_pot_info()
+        
+        action_record = ActionRecord(
+            player_id=player_id,
+            action=action,
+            amount=amount,
+            timestamp=int(time.time() * 1000),
+            pot_after_action=round_pot_info["total_pot"],
+            side_pots_after_action=round_pot_info["side_pots"],
+            total_pot_after_action=total_pot_info["total_pot"],
+            total_side_pots_after_action=total_pot_info["total_side_pots"]
+        )
+        self.action_history.append(action_record)
+
+    def add_blind_players_for_second_action(self, small_blind_player: int, big_blind_player: int) -> None:
+        """Add blind players back for their second action after all other players have acted"""
+        # Only add them if they haven't folded or gone all-in
+        if (small_blind_player in self.player_actions and 
+            self.player_actions[small_blind_player] not in [PokerAction.FOLD, PokerAction.ALL_IN]):
+            self.waiting_for.add(small_blind_player)
+            
+        if (big_blind_player in self.player_actions and 
+            self.player_actions[big_blind_player] not in [PokerAction.FOLD, PokerAction.ALL_IN]):
+            self.waiting_for.add(big_blind_player)
+
     def update_player_action(self, player_id: int, action: PokerAction, amount: int = 0) -> None:
         """Update the round state based on a player's action"""
 
@@ -183,7 +231,13 @@ class RoundState:
             self.waiting_for.discard(player_id)
             self.player_actions[player_id] = PokerAction.FOLD
         elif action == PokerAction.CHECK:
-            if self.bettor is not None:
+            # Special case: Big blind can check if they are the bettor but no one raised above their blind
+            # This happens when big blind posted their blind and no one raised above it
+            can_check = (self.bettor is None or 
+                        (self.bettor == player_id and 
+                         self.player_bets[player_id] == self.raise_amount))
+            
+            if not can_check:
                 raise ValueError("Cannot check when there has been a raise")
             self.waiting_for.discard(player_id)
             self.player_actions[player_id] = PokerAction.CHECK
