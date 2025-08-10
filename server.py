@@ -390,7 +390,7 @@ class PokerEngineServer:
                             self.send_message(player_id, str(request_action_message))
 
                             try:
-                                conn.settimeout(30)
+                                conn.settimeout(5)
                                 action = conn.recv(4096).decode('utf-8')
                                 
                                 if not action:
