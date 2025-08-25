@@ -35,6 +35,7 @@ class TestDealerRotationWithMoney(unittest.TestCase):
         self.server.player_delta = {1: 0, 2: 0, 3: 0, 4: 0}
         self.server.blind_amount = 10
         self.server.dealer_button_position = 0  # Start with player 1
+        self.server.player_order = {1: 1, 2: 2, 3: 3, 4: 4}
         
         # Create a game instance for testing blind assignment
         self.game = Game(debug=True, blind_amount=10)
