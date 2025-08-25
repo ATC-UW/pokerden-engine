@@ -83,6 +83,9 @@ class PokerEngineServer:
         self.running = True
         self.current_player_idx = 0
         self.game_count = 0
+
+        self.connection_count = 0
+        self.player_order = {}
         
         # Dealer button management for continuous games
         self.dealer_button_position = 0
@@ -141,6 +144,8 @@ class PokerEngineServer:
             try:
                 client_socket, address = self.server_socket.accept()
                 player_id = self.generate_player_id()
+                self.connection_count += 1
+                self.player_order[player_id] = self.connection_count # hold true order of players
                 self.player_connections[player_id] = client_socket
                 self.player_addresses[player_id] = address
                 
@@ -353,6 +358,8 @@ class PokerEngineServer:
                     
                     # Get players in proper positional order
                     players_list = list(waiting_for)
+                    # sort by player_order
+                    players_list.sort(key=lambda x: self.player_order[x])
                     if self.game.round_index == 0:
                         # Preflop: small blind first, then big blind, then others
                         queue = self.game.get_preflop_order(players_list)
@@ -602,6 +609,9 @@ class PokerEngineServer:
         
         # Find current dealer player
         all_players = list(self.player_connections.keys())
+
+        # sort by player_order
+        all_players.sort(key=lambda x: self.player_order[x])
         current_dealer_player = all_players[self.dealer_button_position % len(all_players)]
         
         # Find the index of current dealer in the list of players who can afford blind
